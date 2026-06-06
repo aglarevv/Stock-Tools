@@ -5,45 +5,6 @@ import WebKit
 final class ToolboxWebView: WKWebView {
 
     override var acceptsFirstResponder: Bool { true }
-
-    override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        // 让 Web 内容原生处理（Cmd+C/V/X/A 等）
-        if super.performKeyEquivalent(with: event) {
-            return true
-        }
-
-        // 如果 Web 内容没处理 Cmd+V（极少情况），回退到手动粘贴
-        guard let characters = event.charactersIgnoringModifiers,
-              event.modifierFlags.contains(.command),
-              characters == "v" else {
-            return false
-        }
-
-        let pasteboard = NSPasteboard.general
-        guard let text = pasteboard.string(forType: .string) else { return false }
-
-        let escaped = text
-            .replacingOccurrences(of: "\\", with: "\\\\")
-            .replacingOccurrences(of: "`", with: "\\`")
-            .replacingOccurrences(of: "$", with: "\\$")
-        let js = """
-        (function(){
-          var el=document.activeElement;
-          if(!el||!(el.tagName==='TEXTAREA'||el.tagName==='INPUT'))return;
-          var t='\(escaped)';
-          var s=el.selectionStart||0,e=el.selectionEnd||0,v=el.value||'';
-          el.value=v.slice(0,s)+t+v.slice(e);
-          el.selectionStart=el.selectionEnd=s+t.length;
-          // 延迟派发事件，确保 React 事件系统能正确捕获
-          setTimeout(function(){
-            el.dispatchEvent(new Event('input',{bubbles:true}));
-            el.dispatchEvent(new Event('change',{bubbles:true}));
-          },0);
-        })();
-        """
-        self.evaluateJavaScript(js, completionHandler: nil)
-        return true
-    }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate, WKUIDelegate, WKNavigationDelegate {

@@ -1,8 +1,10 @@
 # 🧰 股票工具箱 · StockToolbox
 
+> **官网地址：https://aglarevv.github.io/Stock-Tools**
+
 跨平台股票交易辅助桌面应用。集**交易计划**、**合约计算**、**每日复盘**、**AI 复盘助手**、**技术指标**、**每日时事 3-SOP 分析**于一体，支持 macOS / Windows。
 
-> 前端 React 18 + Vite 5 · 桌面端 Electron 31 / Swift WKWebView · 后端 Node.js + MySQL/SQLite 双数据库
+前端 React 18 + Vite 5 · 桌面端 Electron 31 / Swift WKWebView · 后端 Node.js + MySQL/SQLite 双数据库
 
 ---
 
@@ -19,21 +21,24 @@
 | 📊 **技术指标** | 14 种 K 线形态识别、量能柱分析、多空方向筛选 |
 | 📰 **每日时事** | 3-SOP 日报体系 + AI 摘要生成 + RSS 源自定义 + 历史查阅 |
 | ⚙️ **设置** | 数据库配置、AI 接口、OPML 源管理、API Key 加密存储 |
+| 📄 **文件解析** | 拖拽上传 PDF / DOCX / TXT / MD 文件，AI 辅助分析 |
 
 ---
 
 ## 技术栈
 
 ```
-前端        React 18 + Vite 5 + JSX
-样式        CSS 变量驱动（亮色主题）
-桌面端      Electron 31（Win .nsis）/ Swift WKWebView（macOS .app）
-后端        Node.js HTTP Server（端口 8765）
+前端框架    React 18 + Vite 5 + JSX
+样式系统    CSS 变量驱动（浅色/深色主题）
+macOS 桌面   Swift + WKWebView（原生性能）
+Windows 桌面 Electron 31 + NSIS 安装器
+后端服务    Node.js HTTP Server（端口 8765）
 数据库      MySQL 8.0+（优先） / SQLite（sql.js WASM 回退）
-打包        esbuild 单文件 bundle（666KB，含 feedparser + node-fetch）
-图表        纯 CSS / SVG
-字体        Inter + JetBrains Mono（自托管 WOFF2）
-安全        AES-256-GCM API Key 加密
+构建打包    esbuild 单文件 bundle（~674KB，内联 20+ 子依赖）
+图表渲染    纯 CSS + SVG
+字体        Inter + JetBrains Mono（自托管 WOFF2，离线可用）
+安全存储    AES-256-GCM API Key 加密
+CI/CD       GitHub Actions（CI 检查 + 自动构建 + GitHub Pages 官网）
 ```
 
 ---
@@ -42,45 +47,64 @@
 
 ```
 tools/
-├── react-app/                     # React 前端
-│   ├── index.html                 # Vite 入口 HTML
-│   ├── vite.config.js             # Vite 配置（dev 代理 /api → 8765）
-│   ├── package.json               # 前端依赖 + Electron-builder 配置
-│   ├── public/icon.png            # 应用图标
+├── .github/workflows/
+│   ├── ci.yml                  # CI：多 Node 版本构建检查
+│   ├── release.yml             # Release：macOS/Windows 自动构建 + GitHub Release
+│   └── deploy-website.yml      # 官网部署到 GitHub Pages
+│
+├── react-app/                   # React 前端应用
+│   ├── index.html               # Vite 入口 HTML
+│   ├── vite.config.js           # Vite 配置（dev 代理 /api → 8765）
+│   ├── package.json             # 前端依赖 + Electron-builder 配置
+│   ├── public/icon.png          # 应用图标
 │   ├── electron/
-│   │   ├── main.cjs               # Electron 主进程（窗口管理+后端拉起+健康轮询）
-│   │   └── preload.cjs            # IPC 桥接（窗口控制）
+│   │   ├── main.cjs             # Electron 主进程（窗口管理 + 后端拉起 + 健康轮询）
+│   │   └── preload.cjs          # IPC 桥接（窗口控制）
 │   ├── macos/
-│   │   ├── AppDelegate.swift      # macOS 原生 WKWebView 壳（菜单+后端启动+导航拦截）
-│   │   └── Info.plist             # 应用清单
+│   │   ├── AppDelegate.swift    # macOS 原生 WKWebView 壳（菜单 + 后端启动 + 导航拦截）
+│   │   └── Info.plist           # 应用清单
 │   └── src/
-│       ├── main.jsx               # React 挂载 + WKWebView 补丁
-│       ├── App.jsx                # 根组件（页面路由 + Toast 容器）
-│       ├── styles/global.css      # 全局样式 + CSS 变量 + 组件样式
+│       ├── main.jsx             # React 挂载 + WKWebView 粘贴补丁
+│       ├── App.jsx              # 根组件（页面路由 + NavigationContext + ApiProvider）
+│       ├── styles/global.css    # 全局样式 + CSS 变量 + 组件样式
 │       ├── utils/
-│       │   ├── api.js             # API 请求封装（自动适配 dev/prod 地址）
-│       │   └── helpers.js         # 格式化、计算工具
+│       │   ├── api.js           # API 请求封装（自动适配 dev/prod 地址）
+│       │   ├── helpers.js       # 格式化、计算工具
+│       │   └── reviewConfig.js  # 复盘版块配置（从 DailyReview 提取的数据层）
 │       ├── hooks/
-│       │   └── useToast.jsx       # Toast 通知 Context
+│       │   ├── useToast.jsx     # Toast 通知 Context
+│       │   ├── useAiChat.js     # AI 聊天状态管理（单向数据流）
+│       │   ├── useApi.jsx       # API 客户端注入 Context（低耦合可测试）
+│       │   └── useNavigation.js # 通用导航 Context（解耦页面参数）
 │       └── components/
-│           ├── Sidebar.jsx         # 侧边栏导航
-│           ├── TitleBar.jsx        # 自定义标题栏（Electron 无边框窗口）
-│           ├── Dashboard.jsx       # 看板首页
-│           ├── TradePlan.jsx       # 交易计划编辑器
-│           ├── TradePlanList.jsx   # 交易计划记录
-│           ├── FuturesCalc.jsx     # 合约计算器
-│           ├── DailyReview.jsx     # 每日复盘 + AI 对话
-│           ├── ReviewList.jsx      # 复盘记录列表
+│           ├── Sidebar.jsx       # 侧边栏导航 + DB 状态指示
+│           ├── TitleBar.jsx      # 自定义标题栏（Electron 无边框窗口）
+│           ├── Dashboard.jsx     # 看板首页
+│           ├── TradePlan.jsx     # 交易计划编辑器
+│           ├── TradePlanList.jsx # 交易计划记录
+│           ├── FuturesCalc.jsx   # 合约计算器
+│           ├── DailyReview.jsx   # 每日复盘主组件（高内聚协调器）
+│           ├── ReviewSectionCard.jsx  # 复盘版块摘要卡片（纯展示）
+│           ├── ReviewEditModal.jsx    # 复盘版块编辑弹窗（纯展示）
+│           ├── AiChatPanel.jsx        # AI 聊天面板（纯展示）
+│           ├── ReviewList.jsx   # 复盘记录列表
 │           ├── TechnicalIndicators.jsx  # K 线形态 + 量能分析
-│           ├── DailyNews.jsx       # 每日时事 3-SOP 日报 + AI 摘要
-│           └── Settings.jsx        # 应用设置
+│           ├── DailyNews.jsx    # 每日时事 3-SOP 日报 + AI 摘要
+│           └── Settings.jsx     # 应用设置
+│
 ├── src/server/
-│   ├── server.js                  # Node.js 后端（REST API + RSS + AI 代理 + 静态文件）
-│   └── db.js                      # 数据库抽象层（MySQL/SQLite 双驱动 + SQL 转换）
+│   ├── server.js                # Node.js 后端（REST API + RSS + AI 代理 + 静态文件 + 文件解析）
+│   └── db.js                    # 数据库抽象层（MySQL/SQLite 双驱动 + SQL 语法转换）
+│
 ├── scripts/
-│   └── build-mac.sh               # macOS 构建脚本（React 构建 + Swift 编译 + 打包 .app）
-├── sources.opml                   # 默认 RSS 源配置（OPML 格式）
-└── package.json                   # 后端依赖
+│   └── build-mac.sh             # macOS 构建脚本（React 构建 + Swift 编译 + 打包 .app）
+│
+├── website/                     # GitHub Pages 官网
+│   └── index.html
+│
+├── sources.opml                 # 默认 RSS 源配置（OPML 格式）
+├── package.json                 # 后端依赖
+└── README.md                    # 本文件
 ```
 
 ---
@@ -106,7 +130,7 @@ cd react-app && npm install       # 前端依赖
 # 终端 1：后端服务（端口 8765）
 cd tools && node src/server/server.js
 
-# 终端 2：前端开发服务器（端口 5173）
+# 终端 2：前端开发服务器（端口 5173，自动代理 /api → 8765）
 cd tools/react-app && npm run dev
 ```
 
@@ -132,41 +156,41 @@ export AI_MODEL="deepseek-chat"
 
 ## 构建桌面应用
 
+### macOS（原生 Swift 应用）
+
+```bash
+bash scripts/build-mac.sh        # → build/StockToolbox.app
+```
+
+使用 Swift + WKWebView，无需 Electron，性能更优、包体更小。
+
+### macOS / Windows（Electron）
+
+```bash
+cd react-app
+npm run electron:build:mac       # → release/*.dmg
+npm run electron:build:win       # → release/工具箱 Setup.exe
+```
+
 ### 构建原理
 
-后端 `server.js` 通过 **esbuild** 打包为单文件 `server.bundle.js`（666KB），将 `feedparser`、`node-fetch` 及全部 20+ 子依赖内联。仅保留 `mysql2`（原生绑定）和 `sql.js`（WASM）作为外部模块。彻底消除了 Windows 下逐个排查缺失依赖的问题。
-
-### macOS
-
-```bash
-# Swift WKWebView 原生应用
-bash scripts/build-mac.sh        # → build/StockToolbox.app
-
-# Electron 打包
-cd react-app && npm run electron:build:mac   # → release/*.dmg
-```
-
-### Windows
-
-```bash
-cd react-app && npm run electron:build:win   # → release/工具箱 Setup.exe
-```
+后端 `server.js` 通过 **esbuild** 打包为单文件 `server.bundle.js`（~674KB），将 `feedparser`、`node-fetch` 及全部 20+ 子依赖内联。仅保留 `mysql2`（原生绑定）、`sql.js`（WASM）、`mammoth`（Word 解析）、`pdf-parse`（PDF 解析）作为外部模块，彻底消除 Windows 下逐个排查缺失依赖的问题。
 
 ---
 
 ## API 接口
 
-后端 `http://127.0.0.1:8765`，所有响应 JSON，CORS 已启用。
+后端运行在 `http://127.0.0.1:8765`，所有响应 JSON，CORS 已启用。
 
 ### 交易 & 复盘
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/api/health` | 健康检查 + 数据库状态 |
+| `GET` | `/api/health` | 健康检查 + 数据库状态 + 当前引擎 |
 | `GET` | `/api/dashboard` | 看板统计数据 |
 | `GET/POST` | `/api/trade-plans` | 交易计划查询 / 保存 |
 | `DELETE` | `/api/trade-plans?id=` | 删除交易计划 |
-| `GET/POST` | `/api/daily-reviews` | 复盘记录查询 / 保存 |
+| `GET/POST` | `/api/daily-reviews` | 复盘记录查询（支持 id/日期/股票筛选）/ 保存 |
 | `DELETE` | `/api/daily-reviews?id=` | 删除复盘记录 |
 | `GET/POST` | `/api/settings` | 应用设置读写 |
 
@@ -174,7 +198,7 @@ cd react-app && npm run electron:build:win   # → release/工具箱 Setup.exe
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `POST` | `/api/ai/chat` | AI 复盘对话（需 API Key） |
+| `POST` | `/api/ai/chat` | AI 复盘对话（需 API Key，支持 DeepSeek 思维链） |
 | `POST` | `/api/ai/parse-file` | 文件解析（pdf/docx/txt/md） |
 | `POST` | `/api/ai/daily-digest` | AI 生成 3-SOP 日报摘要 |
 
@@ -184,22 +208,44 @@ cd react-app && npm run electron:build:win   # → release/工具箱 Setup.exe
 |------|------|------|
 | `GET` | `/api/daily-news` | 采集 RSS + 3-SOP 分类 + 已保存摘要 |
 | `GET` | `/api/daily-digests` | 历史日报日期列表 |
-| `GET` | `/api/daily-digest?date=` | 按日期查询历史日报 |
-| `GET/POST` | `/api/sources/opml` | RSS 源配置读写 |
+| `GET` | `/api/daily-digest?date=` | 按日期查询历史日报（含角标恢复） |
+| `GET` | `/api/sources/opml` | 读取当前 OPML 配置 |
+| `GET` | `/api/sources/opml?default=true` | 读取捆绑的默认 OPML（恢复出厂） |
+| `POST` | `/api/sources/opml` | 保存 OPML 配置 |
 
 ---
 
 ## 数据库表
 
 ### trade_plans — 交易计划
-### daily_reviews — 每日复盘（五步法 16 字段）
-### app_settings — 应用设置（KV 存储）
-### daily_digests — 日报摘要持久化
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 主键自增 |
+| `symbol` | 股票名称（唯一） |
+| `buy_price / shares` | 买入价 / 股数 |
+| `profit_rate / loss_rate` | 止盈率 / 止损率 |
+| `take_profit_price / stop_loss_price` | 止盈价 / 止损价 |
+| `expected_profit / expected_loss` | 预期盈亏 |
+| `risk_reward` | 盈亏比 |
+| `trade_direction` | long / short |
+| `position_pct` | 仓位占比 |
+| `trade_notes` | 交易备注 |
+
+### daily_reviews — 每日复盘（五步法 23 字段）
+
+五大版块：市场复盘（事实）→ 板块分析（逻辑）→ 个股检查（标的）→ 交易记录（内因）→ 明日策略（决策），共 23 个分析字段 + 买入/卖出价、股数、持仓方式等交易参数。
+
+### app_settings — 应用设置
+
+KV 键值存储：`theme`, `aiUrl`, `aiKey`（AES-256-GCM 加密）, `aiModel`, `aiTemperature`, `aiThinking`, `dbType` 等。
+
+### daily_digests — 日报摘要
 
 | 字段 | 说明 |
 |------|------|
 | `digest_date` | 日期（主键） |
-| `digest` | AI 生成的摘要文本 |
+| `digest` | AI 生成的摘要文本（已清洗尾注） |
 | `articles_json` | 原始文章 JSON（用于历史查看时恢复角标链接） |
 | `source_count` | 来源文章数 |
 | `sentiment` | 市场情绪标签 |
@@ -208,11 +254,17 @@ cd react-app && npm run electron:build:win   # → release/工具箱 Setup.exe
 
 ## 开发指南
 
+### 架构设计原则
+
+- **低耦合高内聚**：组件通过 Context（`useApi`、`useNavigation`）注入依赖，避免直接 import 耦合
+- **单一职责**：`DailyReview` 已拆分为协调器 + 纯展示组件（`ReviewSectionCard`、`ReviewEditModal`、`AiChatPanel`）+ 数据层（`reviewConfig.js`）+ 业务逻辑 Hook（`useAiChat`）
+- **可测试性**：`useApi` 通过 Context 注入，可在测试中替换为 mock 实现
+
 ### 新增页面
 
 1. `react-app/src/components/YourPage.jsx` — 页面组件
 2. `react-app/src/App.jsx` — 在 `PAGES` 中注册
-3. `react-app/src/components/Sidebar.jsx` — 在 `NAV` 中添加导航项
+3. `react-app/src/components/Sidebar.jsx` — 在 `NAV` 数组中添加导航项
 
 ### 新增 API
 
@@ -221,57 +273,58 @@ cd react-app && npm run electron:build:win   # → release/工具箱 Setup.exe
 
 ### 数据库迁移
 
-新增列使用 `db.addColumnIfNotExists()`（兼容 MySQL/SQLite），新表在 `initializeDatabase()` 中 `CREATE TABLE IF NOT EXISTS`。
+- 新增列使用 `db.addColumnIfNotExists()`（兼容 MySQL/SQLite）
+- 新增表在 `initializeDatabase()` 中 `CREATE TABLE IF NOT EXISTS`
+- 跨引擎设置持久化通过 `config.json` + `syncSettingsFromConfig()` 保障
 
 ### 跨平台注意事项
 
-- **WKWebView**：`target="_blank"` 链接需 `WKNavigationDelegate` 拦截，用 `NSWorkspace.shared.open` 打开
-- **Electron**：依赖模块需在 `package.json` → `extraResources` 中列出
-- **CSS**：使用 `var(--xxx)` 变量，避免硬编码色值
+- **WKWebView (macOS)**：`target="_blank"` 链接需 `WKNavigationDelegate` 拦截，用 `NSWorkspace.shared.open` 打开；Cmd+V 粘贴由 JS 级 `paste` 事件处理器确保 React onChange 触发
+- **Electron (Windows)**：依赖模块需在 `package.json` → `extraResources` 中列出
+- **CSS**：使用 `var(--xxx)` 变量，避免硬编码色值；双主题通过 `data-theme` 属性切换
+
+---
+
+## CI/CD
+
+本项目使用 GitHub Actions 实现持续集成与自动发布：
+
+| 工作流 | 触发条件 | 功能 |
+|--------|---------|------|
+| **CI** | push / PR 到 main | 多 Node 版本（18, 20）构建检查 + esbuild bundle 验证 |
+| **Release** | 推送 `v*` 标签 | macOS（Swift 原生）+ Windows（Electron NSIS）自动构建，创建 GitHub Release |
+| **Deploy Website** | push 到 main（website/ 变更） | 部署官网到 GitHub Pages |
+
+### 手动触发 Release
+
+```bash
+git tag v2.0.0
+git push origin v2.0.0
+```
+
+Actions 会自动构建 macOS `.app` 和 Windows `.exe`，上传到 Release 页面。
 
 ---
 
 ## 常见问题
+
+**Q: 构建后应用启动白屏并提示 "Not found"？**  
+A: 开发模式的后端进程（`node src/server/server.js`）占用了 8765 端口，导致构建后的新进程无法绑定。构建脚本已自动检测并清理旧进程，重新构建即可。
 
 **Q: Windows 构建后启动白屏？**  
 A: 首次启动需等待 MySQL 连接超时（3s）+ SQLite 回退，约 5-8 秒后显示界面。
 
 **Q: 每日时事加载失败？**  
-A: 检查 `sources.opml` 中的 RSS 源是否可访问（部分境外源需科学上网）。
+A: 检查 `sources.opml` 中的 RSS 源是否可访问（部分境外源需科学上网）。可在应用内「源管理」编辑 OPML 或点击「恢复默认」。
 
 **Q: AI 摘要提示 API Key 未配置？**  
-A: 在「设置」中填写 AI 接口信息，支持 OpenAI / DeepSeek 兼容 API。
-- 样式优先使用 CSS 变量（`var(--accent)` 等）
+A: 在「设置 → AI 接口」中填写 API 地址和 Key，支持 OpenAI / DeepSeek 兼容 API。
 
-### 新增页面
+**Q: macOS 应用提示"已损坏，无法打开"？**  
+A: 终端执行 `xattr -cr /Applications/StockToolbox.app`，或右键 → 打开 → 确认打开。
 
-1. 在 `components/` 创建组件
-2. 在 `App.jsx` 的 `PAGES` 对象注册
-3. 在 `Sidebar.jsx` 的 `NAV` 数组添加导航项
-
-### 主题切换
-
-`global.css` 中定义了两套 CSS 变量（`:root` 亮色 / `.dark` 暗色）。在 JS 中通过 `document.documentElement.classList.toggle("dark")` 切换。
-
-### Vite 代理
-
-开发时前端 `localhost:5173`，Vite 自动将 `/api/*` 代理到 `localhost:8765`。生产模式下 Electron 直接启动后端进程。
-
----
-
-## 常见问题
-
-**Q: 数据库连接失败？**
-A: 确认 MySQL 已启动，检查环境变量或设置页中的数据库配置。
-
-**Q: AI 助手无响应？**
-A: 确认已配置有效的 API Key，检查 API 地址格式是否正确。
-
-**Q: Windows 构建报错？**
-A: `npm install` 需要完整安装，确保 `node_modules/electron` 存在。首次构建需下载 Electron 二进制约 150MB。
-
-**Q: 开发时前端 404？**
-A: 确认后端服务 `node src/server/server.js` 已在另一个终端启动。
+**Q: Cmd+V 粘贴无法填入文本框？**  
+A: 本应用在 `main.jsx` 中通过全局 `paste` 事件监听 + value setter 补丁确保粘贴生效。如仍不生效，请检查是否已更新到最新版本。
 
 ---
 
@@ -281,4 +334,4 @@ MIT License
 
 ---
 
-**版本**: 2.0.0 · **最后更新**: 2026-06-05
+**版本**: 2.0.0 · **最后更新**: 2026-06-07 · **官网**: https://aglarevv.github.io/Stock-Tools

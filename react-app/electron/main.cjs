@@ -55,17 +55,28 @@ function resolveServerPath() {
 // 解析前端静态文件目录
 // ---------------------------------------------------------------------------
 function resolveWebRoot() {
-  // 生产环境：Electron extraResources 中的 dist
+  // 生产环境：Electron extraResources 中的 web 目录
   if (process.resourcesPath) {
     const resDist = path.join(process.resourcesPath, "web");
-    if (fs.existsSync(resDist)) return resDist;
+    console.log("[electron] Trying web root:", resDist);
+    if (fs.existsSync(resDist)) {
+      console.log("[electron] Web root found (extraResources):", resDist);
+      return resDist;
+    }
+    console.warn("[electron] extraResources/web not found, trying fallbacks...");
   }
 
   // 开发环境
   const devDist = path.join(__dirname, "..", "dist");
-  if (fs.existsSync(devDist)) return devDist;
+  console.log("[electron] Trying dev web root:", devDist);
+  if (fs.existsSync(devDist)) {
+    console.log("[electron] Web root found (dev):", devDist);
+    return devDist;
+  }
 
-  return devDist; // 回退
+  // 都不存在时返回空字符串，让服务端用 RESOURCES_PATH 或 __dirname 回退
+  console.warn("[electron] WARNING: No web root found — server will auto-resolve");
+  return "";
 }
 
 // ---------------------------------------------------------------------------
@@ -88,6 +99,7 @@ function startBackend() {
         PORT: "8765",
         WEB_ROOT: webRoot,
         ELECTRON_USER_DATA: userDataPath,
+        RESOURCES_PATH: process.resourcesPath || "",
       },
       silent: true,
       // Windows 上确保子进程随父进程退出

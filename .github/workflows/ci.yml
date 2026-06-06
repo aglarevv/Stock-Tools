@@ -55,4 +55,4 @@ jobs:
 
       # ── 后端 bundle 检查（仅检查语法/编译，不运行） ──
       - name: Check server bundle
-        run: npx esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --outfile=/dev/null
+        run: npx esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --external:mammoth --external:pdf-parse --outfile=/dev/null

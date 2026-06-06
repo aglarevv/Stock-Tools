@@ -16,6 +16,7 @@
             <outline type="rss" text="ARK Invest" title="ARK Invest" xmlUrl="https://ark-invest.com/feed/" htmlUrl="https://ark-invest.com/feed/" />
             <outline type="rss" text="东财·策略研报" title="东财·策略研报" xmlUrl="rsshub搭建/eastmoney/report/strategyreport" htmlUrl="rsshub搭建/eastmoney/report/strategyreport" />
             <outline type="rss" text="东财·宏观研究" title="东财·宏观研究" xmlUrl="rsshub搭建/eastmoney/report/macresearch" htmlUrl="rsshub搭建/eastmoney/report/macresearch" />
+            <outline type="rss" text="求是网" title="求是网" xmlUrl="https://plink.anyfeeder.com/qstheory" htmlUrl="https://plink.anyfeeder.com/qstheory" />
         </outline>
         <outline text="SOP 2 势能扫描" title="SOP 2 势能扫描">
             <outline type="rss" text="MarketBeat Instant Alerts" title="MarketBeat Instant Alerts" xmlUrl="https://www.marketbeat.com/rss/instant-alerts.xml" htmlUrl="https://www.marketbeat.com/rss/instant-alerts.xml" />

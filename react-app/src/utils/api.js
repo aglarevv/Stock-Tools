@@ -42,6 +42,7 @@ export const api = {
   getReviews: (params = {}) => {
     const q = new URLSearchParams();
     q.set("limit", params.limit || 50);
+    if (params.id) q.set("id", params.id);
     if (params.symbol) q.set("symbol", params.symbol);
     if (params.dateFrom) q.set("dateFrom", params.dateFrom);
     if (params.dateTo) q.set("dateTo", params.dateTo);
@@ -70,6 +71,8 @@ export const api = {
   // ── RSS 源管理 ──
   /** 读取当前 OPML 配置内容 */
   getSourcesOpml: () => request("GET", "/api/sources/opml"),
+  /** 读取捆绑的默认 OPML 配置（忽略用户自定义） */
+  getDefaultSourcesOpml: () => request("GET", "/api/sources/opml?default=true"),
   /** 保存/上传 OPML 配置 */
   saveSourcesOpml: (content) => request("POST", "/api/sources/opml", { content }),
 };

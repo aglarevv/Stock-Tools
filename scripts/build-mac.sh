@@ -3,6 +3,14 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="StockToolbox"
+
+# ── 端口清理：杀掉占用 8765 的旧进程，避免构建后应用启动冲突 ──
+if lsof -i :8765 -P -n 2>/dev/null | grep -q LISTEN; then
+  echo "Port 8765 is in use — killing old server..."
+  lsof -i :8765 -P -n 2>/dev/null | grep LISTEN | awk '{print $2}' | xargs kill 2>/dev/null || true
+  sleep 1
+  echo "Port 8765 freed"
+fi
 APP_DIR="$ROOT_DIR/build/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
@@ -38,6 +46,8 @@ npx esbuild "$ROOT_DIR/src/server/server.js" \
 mkdir -p "$SERVER_RESOURCES_DIR/node_modules"
 cp -r "$ROOT_DIR/node_modules/mysql2" "$SERVER_RESOURCES_DIR/node_modules/mysql2" 2>/dev/null || true
 cp -r "$ROOT_DIR/node_modules/sql.js" "$SERVER_RESOURCES_DIR/node_modules/sql.js" 2>/dev/null || true
+cp -r "$ROOT_DIR/node_modules/mammoth" "$SERVER_RESOURCES_DIR/node_modules/mammoth" 2>/dev/null || true
+cp -r "$ROOT_DIR/node_modules/pdf-parse" "$SERVER_RESOURCES_DIR/node_modules/pdf-parse" 2>/dev/null || true
 cp "$ROOT_DIR/src/server/server.js" "$SERVER_RESOURCES_DIR/server.js"  # keep original as fallback
 cp "$ROOT_DIR/src/server/db.js" "$SERVER_RESOURCES_DIR/db.js"
 cp "$ROOT_DIR/package.json" "$SERVER_RESOURCES_DIR/package.json"

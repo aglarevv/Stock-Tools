@@ -29,6 +29,22 @@
   --titlebar-h: 36px;
 }
 
+/* 深色主题 */
+[data-theme="dark"] {
+  --bg-root: #0f0f14;
+  --bg-sidebar: #16161e;
+  --bg-card: #1a1a24;
+  --bg-input: #1a1a24;
+  --bg-hover: #22222f;
+  --text-primary: #e8e8ed;
+  --text-secondary: #a0a0b0;
+  --text-muted: #6b6b7e;
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --accent-glow: rgba(99, 102, 241, 0.25);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.2), 0 0 0 1px var(--border-subtle);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { -webkit-font-smoothing: antialiased; background: var(--bg-root); }
 
@@ -131,6 +147,11 @@ body {
   background: var(--bg-input); color: var(--text-primary); font-family: var(--font-mono); font-size: 13px; outline: none;
   transition: border-color 0.15s; width: 100%;
 }
+.form-field input[type="radio"],
+.form-field input[type="checkbox"] {
+  width: auto; min-height: auto; padding: 0; border: none;
+  background: transparent; border-radius: 0; font-family: inherit;
+}
 .form-field textarea { min-height: 60px; padding: 8px 12px; resize: vertical; font-size: 12px; line-height: 1.6; }
 .form-field input:focus, .form-field select:focus, .form-field textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .form-field select { appearance: none; -webkit-appearance: none;
@@ -168,6 +189,7 @@ textarea.filled { border-color: var(--accent) !important; background: var(--acce
 .toast.success { background: var(--profit); }
 .toast.error { background: var(--loss); }
 .toast.info { background: var(--accent); }
+.toast.warning { background: var(--warning); color: #fff; }
 @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
 
 /* 滚动条 */

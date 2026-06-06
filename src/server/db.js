@@ -15,6 +15,49 @@ let mysqlPool = null;
 let sqliteDb = null;
 let sqliteDbPath = null;
 let dbName = null; // 数据库名称，用于 information_schema 查询
+let dbDir = null; // 数据目录路径
+
+// 配置文件路径（存储数据库类型偏好）
+function getConfigDir() {
+  if (process.env.ELECTRON_USER_DATA) {
+    return process.env.ELECTRON_USER_DATA;
+  }
+  if (process.env.SQLITE_DATA_DIR) {
+    return process.env.SQLITE_DATA_DIR;
+  }
+  return path.join(os.homedir(), ".stock-toolbox");
+}
+
+function readConfig() {
+  try {
+    const configPath = path.join(getConfigDir(), "config.json");
+    if (fs.existsSync(configPath)) {
+      return JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    }
+  } catch { /* ignore */ }
+  return {};
+}
+
+function writeConfig(updates) {
+  try {
+    const dir = getConfigDir();
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    }
+    const configPath = path.join(dir, "config.json");
+    const current = readConfig();
+    const merged = { ...current, ...updates };
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2));
+    return merged;
+  } catch (err) {
+    console.error("[db] Failed to write config:", err.message);
+    return {};
+  }
+}
+
+function getDbDir() {
+  return getConfigDir();
+}
 
 // ---------------------------------------------------------------------------
 // SQL 转换工具（MySQL → SQLite）
@@ -36,10 +79,10 @@ function sqliteSQL(sql) {
     .replace(/\bDECIMAL\s*\(\s*\d+\s*,\s*\d+\s*\)/gi, "REAL")
     // VARCHAR(n) → TEXT
     .replace(/\bVARCHAR\s*\(\s*\d+\s*\)/gi, "TEXT")
-    // DATE → TEXT
-    .replace(/\bDATE\b/gi, "TEXT")
-    // TIMESTAMP → TEXT
-    .replace(/\bTIMESTAMP\b/gi, "TEXT")
+    // DATE → TEXT（排除 AS date 列别名：DATE_FORMAT(…) AS date 不受影响）
+    .replace(/(?<!\bAS\s)\bDATE\b/gi, "TEXT")
+    // TIMESTAMP → TEXT（同样排除 AS timestamp 别名）
+    .replace(/(?<!\bAS\s)\bTIMESTAMP\b/gi, "TEXT")
     // DEFAULT CURRENT_TIMESTAMP → DEFAULT (datetime('now','localtime'))
     .replace(
       /DEFAULT\s+CURRENT_TIMESTAMP(\s+ON\s+UPDATE\s+CURRENT_TIMESTAMP)?/gi,
@@ -144,15 +187,7 @@ async function initSQLite(config) {
   const initSqlJs = require("sql.js");
   const SQL = await initSqlJs();
 
-  let dbDir;
-  if (process.env.ELECTRON_USER_DATA) {
-    dbDir = process.env.ELECTRON_USER_DATA;
-  } else if (process.env.SQLITE_DATA_DIR) {
-    dbDir = process.env.SQLITE_DATA_DIR;
-  } else {
-    dbDir = path.join(os.homedir(), ".stock-toolbox");
-  }
-
+  dbDir = getConfigDir();
   if (!fs.existsSync(dbDir)) {
     fs.mkdirSync(dbDir, { recursive: true, mode: 0o700 });
   }
@@ -193,29 +228,38 @@ function saveSQLite() {
 // ---------------------------------------------------------------------------
 
 async function initialize(config) {
-  // 保存数据库名供后续使用
   dbName = config.mysql?.database || "stock_toolbox";
 
-  // 先尝试 MySQL
-  try {
-    console.log("[db] Trying MySQL...");
-    mysqlPool = await initMySQL(config.mysql);
-    dbType = "mysql";
-    console.log("[db] MySQL connected successfully");
-    return;
-  } catch (err) {
-    console.log("[db] MySQL unavailable:", err.message);
-  }
+  // ── 第一步：始终先初始化 SQLite ──
+  console.log("[db] Initializing SQLite (primary)...");
+  sqliteDb = await initSQLite(config);
+  dbType = "sqlite";
+  console.log("[db] SQLite initialized: " + sqliteDbPath);
 
-  // 回退到 SQLite
-  try {
-    console.log("[db] Falling back to SQLite (sql.js WASM)...");
-    sqliteDb = await initSQLite(config);
-    dbType = "sqlite";
-    console.log("[db] SQLite initialized successfully");
-  } catch (err) {
-    console.error("[db] SQLite initialization failed:", err.message);
-    throw new Error(`无法初始化数据库：MySQL 不可用，SQLite 回退也失败 (${err.message})`);
+  // ── 第二步：从 config.json 读取用户偏好（唯一数据源） ──
+  const prefs = readConfig();
+  const wantMySQL = prefs.dbType === "mysql";
+
+  if (wantMySQL) {
+    // 优先使用 config.json 中的 MySQL 凭据，其次用 env/默认值
+    const mysqlCfg = {
+      host: prefs.mysql?.host || config.mysql.host,
+      port: Number(prefs.mysql?.port) || config.mysql.port,
+      user: prefs.mysql?.user || config.mysql.user,
+      password: prefs.mysql?.password || config.mysql.password,
+      database: prefs.mysql?.database || config.mysql.database,
+    };
+    console.log("[db] Config.json requests MySQL, attempting...");
+    try {
+      mysqlPool = await initMySQL(mysqlCfg);
+      dbType = "mysql";
+      console.log("[db] MySQL connected — switched from SQLite");
+    } catch (err) {
+      console.log("[db] MySQL unavailable:", err.message);
+      console.log("[db] Staying on SQLite (check MySQL settings)");
+    }
+  } else {
+    console.log("[db] Using SQLite (config.json: dbType=sqlite)");
   }
 }
 
@@ -499,4 +543,7 @@ module.exports = {
   getDbType,
   isMySQL,
   isSQLite,
+  readConfig,
+  writeConfig,
+  getDbDir,
 };

@@ -66,7 +66,9 @@ export default function Dashboard({ navigate, showToast }) {
           <div className="card-header"><h2>📝 最近复盘摘要</h2><span className="card-hint">{latest?.reviewDate}</span></div>
           <div className="card-body">
             {latest ? (
-              <ReviewSummary record={latest} />
+              <div onClick={() => navigate("review", { reviewId: latest.id })} style={{ cursor: "pointer" }}>
+                <ReviewSummary record={latest} />
+              </div>
             ) : <div className="empty-text">暂无复盘记录</div>}
           </div>
         </div>

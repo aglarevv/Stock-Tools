@@ -126,7 +126,9 @@ export default function DailyNews({ showToast }) {
   function renderDigest(text, linkMapOverride) {
     if (!text) return null;
     const linkMap = linkMapOverride || buildLinkMap();
-    const lines = text.split("\n");
+    // 先清理 markdown 标题符号（### → 空）
+    const cleaned = text.replace(/^#{1,6}\s+/gm, "");
+    const lines = cleaned.split("\n");
     return lines.map((line, li) => {
       if (!line.trim()) return <br key={li} />;
       const segments = parseInlineMarkdown(line, linkMap);
@@ -186,15 +188,41 @@ export default function DailyNews({ showToast }) {
     } finally { setOpmlLoading(false); }
   }
 
+  /** 恢复默认 OPML 配置 */
+  async function restoreDefaultOpml() {
+    if (!confirm("确认恢复默认 RSS 源配置？当前编辑的内容将丢失。")) return;
+    setOpmlLoading(true);
+    try {
+      const res = await api.getDefaultSourcesOpml();
+      setOpmlContent(res.content || "");
+      showToast("已加载默认 OPML 配置，点击「保存并刷新」生效", "info");
+    } catch (e) {
+      showToast(`加载默认 OPML 失败：${e.message}`, "error");
+    } finally { setOpmlLoading(false); }
+  }
+
   function parseInlineMarkdown(line, linkMap) {
-    const parts = line.split(/(\[来源\d+\])/g);
+    // 匹配 [来源N] 和 [N] 两种格式
+    const parts = line.split(/(\[(?:来源)?\d+\])/g);
     return parts.map((part, i) => {
-      const citeM = part.match(/^\[来源(\d+)\]$/);
+      const citeM = part.match(/^\[(?:来源)?(\d+)\]$/);
       if (citeM) {
         const num = parseInt(citeM[1]);
         const info = linkMap[num];
         if (info?.link) {
-          return <a key={`c${i}`} href={info.link} target="_blank" rel="noopener noreferrer" className="cite-link" title={info.title} onClick={(e) => { try { window.open(info.link, "_blank"); } catch {} }}>[{num}]</a>;
+          return (
+            <a
+              key={`c${i}`}
+              href={info.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="cite-link"
+              title={info.title}
+              onClick={(e) => { e.preventDefault(); try { window.open(info.link, "_blank"); } catch {} }}
+            >
+              [{num}]
+            </a>
+          );
         }
         return <span key={`c${i}`} className="cite-muted">[{num}]</span>;
       }
@@ -440,6 +468,9 @@ export default function DailyNews({ showToast }) {
                 保存后自动刷新文章 · 保存在本地用户目录
               </span>
               <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost" onClick={restoreDefaultOpml} disabled={opmlLoading} style={{ fontSize: 12, color: "var(--warning)" }}>
+                  🔄 恢复默认
+                </button>
                 <button className="btn btn-ghost" onClick={() => setShowOpmlEditor(false)}>取消</button>
                 <button className="btn btn-primary" onClick={saveOpml} disabled={opmlLoading}>
                   {opmlLoading ? "保存中…" : "💾 保存并刷新"}
