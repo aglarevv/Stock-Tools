@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "website/**"
+      - "*.md"
+      - "LICENSE"
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "website/**"
+      - "*.md"
+      - "LICENSE"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build & Lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            react-app/package-lock.json
+
+      # ── 后端依赖 ──
+      - name: Install root dependencies
+        run: npm ci
+
+      # ── 前端依赖 ──
+      - name: Install react-app dependencies
+        working-directory: react-app
+        run: npm ci
+
+      # ── 前端构建检查 ──
+      - name: Build React frontend
+        working-directory: react-app
+        run: npm run build
+
+      # ── 后端 bundle 检查（仅检查语法/编译，不运行） ──
+      - name: Check server bundle
+        run: npx esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --outfile=/dev/null

@@ -1,0 +1,155 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*" # 推送 v1.0.0 / v2.0.0 等标签时触发
+  workflow_dispatch: {} # 允许手动触发
+
+permissions:
+  contents: write # 创建 Release 需要写权限
+
+jobs:
+  # ────────────────────────────────────────────────────────────
+  # macOS 原生构建（Swift WKWebView）
+  # ────────────────────────────────────────────────────────────
+  build-macos:
+    name: Build macOS
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            react-app/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install react-app dependencies
+        working-directory: react-app
+        run: npm ci
+
+      - name: Build macOS app
+        run: bash scripts/build-mac.sh
+
+      - name: Package as DMG (optional wrapper)
+        run: |
+          APP_DIR="build/StockToolbox.app"
+          if [ -d "$APP_DIR" ]; then
+            # 创建 .zip 分发
+            cd build && zip -r StockToolbox-macos.zip StockToolbox.app && cd ..
+            ls -lh build/StockToolbox-macos.zip
+          else
+            echo "App not found, checking build output..."
+            ls -la build/
+          fi
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: |
+            build/StockToolbox-macos.zip
+            build/StockToolbox.app
+          if-no-files-found: error
+
+  # ────────────────────────────────────────────────────────────
+  # Windows 构建（Electron + NSIS）
+  # ────────────────────────────────────────────────────────────
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: |
+            package-lock.json
+            react-app/package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: Install react-app dependencies
+        working-directory: react-app
+        run: npm ci
+
+      - name: Build Windows app
+        working-directory: react-app
+        run: npm run electron:build:win
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: react-app/release/*.exe
+          if-no-files-found: error
+
+  # ────────────────────────────────────────────────────────────
+  # 创建 GitHub Release 并上传所有产物
+  # ────────────────────────────────────────────────────────────
+  publish-release:
+    name: Publish Release
+    needs: [build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-build
+          path: artifacts/macos
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-build
+          path: artifacts/windows
+
+      - name: List artifacts
+        run: |
+          echo "=== macOS ==="
+          ls -lh artifacts/macos/
+          echo "=== Windows ==="
+          ls -lh artifacts/windows/
+
+      - name: Create Release & Upload Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body: |
+            ## 🔽 下载 / Download
+
+            | 平台 | 文件 | 说明 |
+            |------|------|------|
+            | 🍎 **macOS** | `StockToolbox-macos.zip` | Swift WKWebView 原生应用 |
+            | 🪟 **Windows** | Setup .exe | Electron + NSIS 安装器 |
+
+            ---
+            ### 安装说明
+
+            **macOS**: 下载 `.zip`，解压后将 `StockToolbox.app` 拖入 `/Applications`。首次打开如提示"无法验证开发者"，前往 **系统设置 → 隐私与安全性** 点击"仍要打开"。
+
+            **Windows**: 下载 `.exe` 安装程序，双击运行。如 SmartScreen 拦截，点击"更多信息 → 仍要运行"。
+          draft: false
+          prerelease: false
+          files: |
+            artifacts/macos/StockToolbox-macos.zip
+            artifacts/windows/*.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

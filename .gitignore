@@ -1,0 +1,46 @@
+# ── Dependencies ──
+node_modules/
+
+# ── Build outputs ──
+react-app/dist/
+build/
+release/
+
+# ── Electron builder ──
+react-app/release/
+
+# ── Swift / Xcode ──
+*.xcuserdata
+*.xcworkspace
+DerivedData/
+
+# ── OS junk ──
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+*.swp
+*.swo
+*~
+
+# ── Logs ──
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── IDE / Editor ──
+.vscode/settings.json
+.idea/
+*.sublime-*
+
+# ── Env / Secrets ──
+.env
+.env.local
+.env.*.local
+
+# ── Misc ──
+*.tmp
+*.temp
+.cache/

@@ -1,0 +1,101 @@
+{
+  "name": "toolbox",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "electron:build:mac": "vite build && electron-builder --mac",
+    "electron:build:win": "vite build && electron-builder --win"
+  },
+  "build": {
+    "appId": "local.toolbox",
+    "productName": "工具箱",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "../src/server/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "../src/server",
+        "to": "server"
+      },
+      {
+        "from": "../node_modules/mysql2",
+        "to": "node_modules/mysql2"
+      },
+      {
+        "from": "../node_modules/sql.js",
+        "to": "node_modules/sql.js"
+      },
+      {
+        "from": "../sources.opml",
+        "to": "sources.opml"
+      },
+      {
+        "from": "dist",
+        "to": "web",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.finance",
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "../build/StockToolbox.icns"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "dist/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "deleteAppDataOnUninstall": true,
+      "runAfterFinish": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "工具箱 Toolbox"
+    }
+  },
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sql.js": "^1.10.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "concurrently": "^8.2.2",
+    "electron": "^31.1.0",
+    "electron-builder": "^24.13.3",
+    "terser": "^5.48.0",
+    "vite": "^5.3.1",
+    "wait-on": "^7.2.0"
+  }
+}

@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="StockToolbox — 跨平台股票交易辅助工具。交易计划、合约计算、每日复盘、AI 复盘助手、技术指标、3-SOP 每日时事分析。">
+<title>StockToolbox · 股票工具箱</title>
+<style>
+  :root {
+    --bg: #0f0f14;
+    --bg-card: #1a1a24;
+    --bg-elevated: #22222f;
+    --text: #e8e8ed;
+    --text-muted: #8b8b9e;
+    --accent: #6366f1;
+    --accent-glow: rgba(99,102,241,0.25);
+    --profit: #22c55e;
+    --loss: #ef4444;
+    --border: rgba(255,255,255,0.08);
+    --radius: 14px;
+    --font: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", "Menlo", monospace;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+  a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
+  a:hover { color: #818cf8; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+
+  /* ── Nav ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: rgba(15,15,20,0.85); backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+  }
+  nav .container { display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.3px; }
+  .nav-logo svg { width: 32px; height: 32px; }
+  .nav-links { display: flex; gap: 28px; list-style: none; font-size: 14px; }
+  .nav-links a { color: var(--text-muted); transition: color 0.2s; }
+  .nav-links a:hover { color: var(--text); }
+
+  /* ── Hero ── */
+  .hero {
+    padding: 140px 0 80px; text-align: center; position: relative;
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.12), transparent 70%);
+  }
+  .hero-badge {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 16px; border-radius: 99px; font-size: 13px; font-weight: 500;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--text-muted); margin-bottom: 28px;
+  }
+  .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+  .hero h1 {
+    font-size: clamp(40px, 7vw, 68px); font-weight: 800; letter-spacing: -2px;
+    line-height: 1.08; margin-bottom: 20px;
+    background: linear-gradient(135deg, #e8e8ed 0%, #a5a5b8 50%, #6366f1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: 18px; color: var(--text-muted); max-width: 560px; margin: 0 auto 36px;
+    line-height: 1.7;
+  }
+  .hero-actions { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; padding: 12px 26px;
+    border-radius: 99px; font-size: 15px; font-weight: 600; cursor: pointer;
+    border: none; transition: all 0.25s; font-family: var(--font);
+  }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 0 24px var(--accent-glow); }
+  .btn-primary:hover { background: #5558e7; transform: translateY(-1px); box-shadow: 0 0 36px var(--accent-glow); }
+  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-sm { padding: 8px 16px; font-size: 13px; }
+
+  /* ── Features Grid ── */
+  .section { padding: 100px 0; }
+  .section-label { text-align: center; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: var(--accent); margin-bottom: 12px; }
+  .section-title { text-align: center; font-size: clamp(28px, 4vw, 40px); font-weight: 700; letter-spacing: -0.8px; margin-bottom: 14px; }
+  .section-sub { text-align: center; color: var(--text-muted); font-size: 16px; max-width: 500px; margin: 0 auto 56px; }
+  .features-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 18px;
+  }
+  .feature-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 28px; transition: all 0.3s;
+  }
+  .feature-card:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .feature-icon { font-size: 32px; margin-bottom: 14px; display: block; }
+  .feature-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .feature-card p { font-size: 14px; color: var(--text-muted); line-height: 1.65; }
+
+  /* ── SOP Section ── */
+  .sop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .sop-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 32px; position: relative; overflow: hidden;
+  }
+  .sop-card::before {
+    content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+  }
+  .sop-card:nth-child(1)::before { background: linear-gradient(90deg, #6366f1, #a78bfa); }
+  .sop-card:nth-child(2)::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+  .sop-card:nth-child(3)::before { background: linear-gradient(90deg, #22c55e, #06b6d4); }
+  .sop-card .step { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
+  .sop-card:nth-child(1) .step { color: #a78bfa; }
+  .sop-card:nth-child(2) .step { color: #f59e0b; }
+  .sop-card:nth-child(3) .step { color: #22c55e; }
+  .sop-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .sop-card p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
+  .sop-card .tag {
+    display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px;
+    font-weight: 600; margin-top: 14px;
+  }
+  .sop-card:nth-child(1) .tag { background: rgba(99,102,241,0.15); color: #a78bfa; }
+  .sop-card:nth-child(2) .tag { background: rgba(245,158,11,0.12); color: #f59e0b; }
+  .sop-card:nth-child(3) .tag { background: rgba(34,197,94,0.12); color: #22c55e; }
+
+  /* ── Tech Stack ── */
+  .tech-strip {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 48px; text-align: center;
+  }
+  .tech-strip .logos { display: flex; flex-wrap: wrap; gap: 32px 48px; justify-content: center; align-items: center; }
+  .tech-strip .tech-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .tech-strip .tech-name { font-weight: 600; font-size: 14px; }
+  .tech-strip .tech-ver { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
+
+  /* ── Download ── */
+  .download-section { text-align: center; }
+  .download-cards { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 40px; }
+  .download-card {
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 32px 28px; text-align: center; min-width: 200px; flex: 1; max-width: 280px;
+    transition: all 0.3s;
+  }
+  .download-card:hover { border-color: var(--accent); }
+  .download-card .os-icon { font-size: 40px; margin-bottom: 12px; }
+  .download-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .download-card .ver { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; font-family: var(--font-mono); }
+  .download-card .note { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border); padding: 40px 0;
+    text-align: center; font-size: 13px; color: var(--text-muted);
+  }
+  footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+
+  /* ── Particles ── */
+  .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+  .particle {
+    position: absolute; border-radius: 50%; opacity: 0.35;
+    animation: float 6s infinite ease-in-out;
+  }
+  @keyframes float {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-30px) scale(1.15); }
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .hero { padding: 100px 0 50px; }
+    .nav-links { display: none; }
+    .features-grid { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 36px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <a href="#" class="nav-logo">
+      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="url(#g)"/><path d="M9 12h6l-3 8h4l-4 8 6-14H12L9 12Z" fill="#fff" opacity="0.9"/><defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#6366f1"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient></defs></svg>
+      StockToolbox
+    </a>
+    <ul class="nav-links">
+      <li><a href="#features">功能</a></li>
+      <li><a href="#sop">3-SOP 体系</a></li>
+      <li><a href="#tech">技术栈</a></li>
+      <li><a href="#download">下载</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="particles">
+    <div class="particle" style="width:6px;height:6px;background:#6366f1;top:20%;left:15%;animation-delay:0s"></div>
+    <div class="particle" style="width:4px;height:4px;background:#8b5cf6;top:30%;right:20%;animation-delay:1s"></div>
+    <div class="particle" style="width:8px;height:8px;background:#22c55e;top:50%;left:10%;animation-delay:2s"></div>
+    <div class="particle" style="width:5px;height:5px;background:#f59e0b;bottom:30%;right:15%;animation-delay:3s"></div>
+    <div class="particle" style="width:7px;height:7px;background:#ef4444;top:10%;left:50%;animation-delay:4s"></div>
+    <div class="particle" style="width:3px;height:3px;background:#06b6d4;bottom:20%;left:40%;animation-delay:5s"></div>
+  </div>
+  <div class="container">
+    <div class="hero-badge">
+      <span class="dot"></span> v2.0 · macOS / Windows
+    </div>
+    <h1>股票交易<br>尽在掌控</h1>
+    <p>跨平台桌面交易工具箱 — 从交易计划、每日复盘到 3-SOP 时事分析和 AI 日报摘要，一站式覆盖你的投资决策全流程。</p>
+    <div class="hero-actions">
+      <a href="#download" class="btn btn-primary">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        免费下载
+      </a>
+      <a href="https://github.com/aglarevv/Stock-Tools" class="btn btn-outline" target="_blank" rel="noopener">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.605-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="section-label">功能模块</div>
+    <h2 class="section-title">九大模块，覆盖全流程</h2>
+    <p class="section-sub">从计划、执行到复盘、分析，一站式交易决策工具</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3>看板</h3>
+        <p>盈亏汇总、胜率统计、最近复盘摘要、交易计划总览，一屏掌握全局。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📈</span>
+        <h3>交易计划</h3>
+        <p>止盈止损自动计算、做多/做空切换、仓位占比管理、价格区间可视化。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📝</span>
+        <h3>每日复盘</h3>
+        <p>五步法复盘框架，草稿自动保存，AI 助手多轮对话深度分析每笔交易。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">🤖</span>
+        <h3>AI 复盘助手</h3>
+        <p>基于复盘数据智能分析，支持 OpenAI / DeepSeek，深度思考模式。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📐</span>
+        <h3>合约计算</h3>
+        <p>期货合约止盈止损计算，收益率反推价格，一键生成参考区间。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📊</span>
+        <h3>技术指标</h3>
+        <p>14 种 K 线形态自动识别，量能柱分析，多空方向筛选。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📰</span>
+        <h3>每日时事</h3>
+        <p>全球财经 RSS 采集，3-SOP 分类体系，AI 自动生成日报摘要。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">📡</span>
+        <h3>RSS 源管理</h3>
+        <p>自定义 OPML 源配置，支持导入导出，灵活拓展信息渠道。</p>
+      </div>
+      <div class="feature-card">
+        <span class="feature-icon">⚙️</span>
+        <h3>设置 & 数据</h3>
+        <p>MySQL / SQLite 双数据库，API Key 加密存储，多平台同步。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3-SOP -->
+<section class="section" id="sop" style="padding-top:0">
+  <div class="container">
+    <div class="section-label">3-SOP 分析体系</div>
+    <h2 class="section-title">结构化信息处理</h2>
+    <p class="section-sub">每日采集全 球财经 RSS，按三层 SOP 框架分类，AI 自动生成日报摘要</p>
+    <div class="sop-grid">
+      <div class="sop-card">
+        <div class="step">SOP 1</div>
+        <h3>🧠 深度洞察</h3>
+        <p>聚焦长期逻辑、商业模式变化、宏观政策定调。回答投资的 <strong>Why</strong> 和 <strong>What</strong>。</p>
+        <span class="tag">Bloomberg · FT · The Economist · 券商研报</span>
+      </div>
+      <div class="sop-card">
+        <div class="step">SOP 2</div>
+        <h3>📡 势能扫描</h3>
+        <p>聚焦资金流向、评级调整、突发市场热点。回答投资的 <strong>When</strong> 和 <strong>Where</strong>。</p>
+        <span class="tag">金十数据 · 财联社 · MarketBeat · TechCrunch</span>
+      </div>
+      <div class="sop-card">
+        <div class="step">SOP 3</div>
+        <h3>🔬 区域 / 垂类</h3>
+        <p>查漏补缺、特定机会、技术前沿突破。回答投资的 <strong>How</strong> 和 <strong>Next</strong>。</p>
+        <span class="tag">TechInAsia · EU-Startups · NVIDIA Blog · The Verge</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Tech Stack -->
+<section class="section" id="tech" style="padding-top:0">
+  <div class="container">
+    <div class="section-label">技术栈</div>
+    <h2 class="section-title">现代、轻量、跨平台</h2>
+    <p class="section-sub">前后端分离架构，双桌面方案覆盖 macOS 和 Windows</p>
+    <div class="tech-strip">
+      <div class="logos">
+        <div class="tech-item"><span style="font-size:28px">⚛️</span><span class="tech-name">React 18</span><span class="tech-ver">Vite 5</span></div>
+        <div class="tech-item"><span style="font-size:28px">🟢</span><span class="tech-name">Node.js</span><span class="tech-ver">HTTP Server</span></div>
+        <div class="tech-item"><span style="font-size:28px">⚡</span><span class="tech-name">esbuild</span><span class="tech-ver">单文件 Bundle</span></div>
+        <div class="tech-item"><span style="font-size:28px">🐬</span><span class="tech-name">MySQL 8</span><span class="tech-ver">/ SQLite 回退</span></div>
+        <div class="tech-item"><span style="font-size:28px">🍎</span><span class="tech-name">Swift</span><span class="tech-ver">WKWebView</span></div>
+        <div class="tech-item"><span style="font-size:28px">🪟</span><span class="tech-name">Electron 31</span><span class="tech-ver">NSIS 安装</span></div>
+        <div class="tech-item"><span style="font-size:28px">🤖</span><span class="tech-name">AI 集成</span><span class="tech-ver">OpenAI / DeepSeek</span></div>
+        <div class="tech-item"><span style="font-size:28px">📰</span><span class="tech-name">RSS 引擎</span><span class="tech-ver">Feedparser</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Download -->
+<section class="section download-section" id="download">
+  <div class="container">
+    <div class="section-label">下载</div>
+    <h2 class="section-title">开始使用</h2>
+    <p class="section-sub">支持 macOS 原生应用和 Windows 安装包，持续更新中</p>
+    <div class="download-cards">
+      <div class="download-card" id="download-macos">
+        <div class="os-icon">🍎</div>
+        <h4>macOS</h4>
+        <div class="ver" id="ver-macos">加载中…</div>
+        <a class="btn btn-primary btn-sm" id="btn-macos" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          下载 .zip
+        </a>
+        <div class="note">Swift WKWebView 原生壳</div>
+      </div>
+      <div class="download-card" id="download-windows">
+        <div class="os-icon">🪟</div>
+        <h4>Windows</h4>
+        <div class="ver" id="ver-windows">加载中…</div>
+        <a class="btn btn-primary btn-sm" id="btn-windows" href="#">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          下载 Setup.exe
+        </a>
+        <div class="note">Electron + NSIS 安装器</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container">
+    <span>&copy; 2026 StockToolbox. MIT License.</span>
+    <span>Made with ❤️ for traders</span>
+  </div>
+</footer>
+
+<!-- ── Dynamic Download Links from GitHub Releases ── -->
+<script>
+  (async () => {
+    const REPO_OWNER = "aglarevv";
+    const REPO_NAME = "Stock-Tools";
+
+    const verMac = document.getElementById("ver-macos");
+    const verWin = document.getElementById("ver-windows");
+    const btnMac = document.getElementById("btn-macos");
+    const btnWin = document.getElementById("btn-windows");
+
+    const fallback = () => {
+      verMac.textContent = "前往 GitHub 下载";
+      verWin.textContent = "前往 GitHub 下载";
+      btnMac.href = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+      btnWin.href = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+    };
+
+    try {
+      const res = await fetch(
+        `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`
+      );
+      if (!res.ok) throw new Error("API error");
+      const release = await res.json();
+      const tag = release.tag_name.replace(/^v/, "");
+
+      let macUrl = null, winUrl = null;
+      for (const asset of release.assets) {
+        const name = asset.name;
+        if (!macUrl && (name.endsWith(".zip") || name.endsWith(".dmg"))) {
+          macUrl = asset.browser_download_url;
+        }
+        if (!winUrl && name.endsWith(".exe")) {
+          winUrl = asset.browser_download_url;
+        }
+        if (macUrl && winUrl) break;
+      }
+
+      if (macUrl) {
+        verMac.textContent = `v${tag} · Universal`;
+        btnMac.href = macUrl;
+      } else {
+        verMac.textContent = "即将发布";
+        btnMac.style.opacity = "0.5";
+        btnMac.style.pointerEvents = "none";
+      }
+
+      if (winUrl) {
+        verWin.textContent = `v${tag} · x64`;
+        btnWin.href = winUrl;
+      } else {
+        verWin.textContent = "即将发布";
+        btnWin.style.opacity = "0.5";
+        btnWin.style.pointerEvents = "none";
+      }
+
+      const badge = document.querySelector(".hero-badge");
+      if (badge && release.tag_name) {
+        badge.innerHTML = `<span class="dot"></span> ${release.tag_name} · macOS / Windows`;
+      }
+    } catch {
+      fallback();
+    }
+  })();
+</script>
+
+</body>
+</html>
