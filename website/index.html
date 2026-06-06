@@ -7,16 +7,20 @@
 <title>StockToolbox · 股票工具箱</title>
 <style>
   :root {
-    --bg: #0f0f14;
-    --bg-card: #1a1a24;
-    --bg-elevated: #22222f;
-    --text: #e8e8ed;
-    --text-muted: #8b8b9e;
+    --bg: #f5f5f7;
+    --bg-card: #ffffff;
+    --bg-elevated: #fafafa;
+    --text: #1d1d1f;
+    --text-muted: #6e6e73;
     --accent: #6366f1;
-    --accent-glow: rgba(99,102,241,0.25);
-    --profit: #22c55e;
-    --loss: #ef4444;
-    --border: rgba(255,255,255,0.08);
+    --accent-glow: rgba(99,102,241,0.18);
+    --accent-hover: #5558e7;
+    --profit: #16a34a;
+    --loss: #dc2626;
+    --border: rgba(0,0,0,0.08);
+    --border-hover: rgba(99,102,241,0.25);
+    --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 0 0 1px rgba(0,0,0,0.04);
+    --shadow-lg: 0 4px 20px rgba(0,0,0,0.08);
     --radius: 14px;
     --font: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
     --font-mono: "JetBrains Mono", "SF Mono", "Menlo", monospace;
@@ -32,17 +36,17 @@
     overflow-x: hidden;
   }
   a { color: var(--accent); text-decoration: none; transition: color 0.2s; }
-  a:hover { color: #818cf8; }
+  a:hover { color: var(--accent-hover); }
   .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
 
   /* ── Nav ── */
   nav {
     position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-    background: rgba(15,15,20,0.85); backdrop-filter: blur(16px);
+    background: rgba(250,250,250,0.82); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
   }
   nav .container { display: flex; align-items: center; justify-content: space-between; height: 56px; }
-  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.3px; }
+  .nav-logo { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; letter-spacing: -0.3px; color: var(--text); }
   .nav-logo svg { width: 32px; height: 32px; }
   .nav-links { display: flex; gap: 28px; list-style: none; font-size: 14px; }
   .nav-links a { color: var(--text-muted); transition: color 0.2s; }
@@ -51,19 +55,20 @@
   /* ── Hero ── */
   .hero {
     padding: 140px 0 80px; text-align: center; position: relative;
-    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.12), transparent 70%);
+    background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.08), transparent 70%);
   }
   .hero-badge {
     display: inline-flex; align-items: center; gap: 8px;
     padding: 6px 16px; border-radius: 99px; font-size: 13px; font-weight: 500;
-    background: var(--bg-elevated); border: 1px solid var(--border);
+    background: var(--bg-card); border: 1px solid var(--border);
     color: var(--text-muted); margin-bottom: 28px;
+    box-shadow: var(--shadow);
   }
-  .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+  .hero-badge .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--profit); box-shadow: 0 0 8px rgba(22,163,74,0.35); }
   .hero h1 {
     font-size: clamp(40px, 7vw, 68px); font-weight: 800; letter-spacing: -2px;
     line-height: 1.08; margin-bottom: 20px;
-    background: linear-gradient(135deg, #e8e8ed 0%, #a5a5b8 50%, #6366f1 100%);
+    background: linear-gradient(135deg, #1d1d1f 0%, #6366f1 50%, #8b5cf6 100%);
     -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   }
   .hero p {
@@ -76,10 +81,10 @@
     border-radius: 99px; font-size: 15px; font-weight: 600; cursor: pointer;
     border: none; transition: all 0.25s; font-family: var(--font);
   }
-  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 0 24px var(--accent-glow); }
-  .btn-primary:hover { background: #5558e7; transform: translateY(-1px); box-shadow: 0 0 36px var(--accent-glow); }
-  .btn-outline { background: transparent; border: 1.5px solid var(--border); color: var(--text); }
-  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-primary { background: var(--accent); color: #fff; box-shadow: 0 4px 16px var(--accent-glow); }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(99,102,241,0.28); }
+  .btn-outline { background: var(--bg-card); border: 1.5px solid var(--border); color: var(--text); box-shadow: var(--shadow); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); box-shadow: var(--shadow-lg); }
   .btn-sm { padding: 8px 16px; font-size: 13px; }
 
   /* ── Features Grid ── */
@@ -89,51 +94,51 @@
   .section-sub { text-align: center; color: var(--text-muted); font-size: 16px; max-width: 500px; margin: 0 auto 56px; }
   .features-grid {
     display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 18px;
+    gap: 16px;
   }
   .feature-card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 28px; transition: all 0.3s;
+    padding: 28px; transition: all 0.3s; box-shadow: var(--shadow);
   }
-  .feature-card:hover { border-color: rgba(99,102,241,0.3); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.3); }
+  .feature-card:hover { border-color: var(--border-hover); transform: translateY(-2px); box-shadow: var(--shadow-lg); }
   .feature-icon { font-size: 32px; margin-bottom: 14px; display: block; }
-  .feature-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+  .feature-card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; color: var(--text); }
   .feature-card p { font-size: 14px; color: var(--text-muted); line-height: 1.65; }
 
   /* ── SOP Section ── */
-  .sop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+  .sop-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
   .sop-card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 32px; position: relative; overflow: hidden;
+    padding: 32px; position: relative; overflow: hidden; box-shadow: var(--shadow);
   }
   .sop-card::before {
     content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
   }
   .sop-card:nth-child(1)::before { background: linear-gradient(90deg, #6366f1, #a78bfa); }
   .sop-card:nth-child(2)::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
-  .sop-card:nth-child(3)::before { background: linear-gradient(90deg, #22c55e, #06b6d4); }
+  .sop-card:nth-child(3)::before { background: linear-gradient(90deg, #16a34a, #06b6d4); }
   .sop-card .step { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
-  .sop-card:nth-child(1) .step { color: #a78bfa; }
-  .sop-card:nth-child(2) .step { color: #f59e0b; }
-  .sop-card:nth-child(3) .step { color: #22c55e; }
-  .sop-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+  .sop-card:nth-child(1) .step { color: #7c3aed; }
+  .sop-card:nth-child(2) .step { color: #d97706; }
+  .sop-card:nth-child(3) .step { color: #16a34a; }
+  .sop-card h3 { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
   .sop-card p { font-size: 14px; color: var(--text-muted); line-height: 1.7; }
   .sop-card .tag {
     display: inline-block; padding: 3px 10px; border-radius: 99px; font-size: 11px;
     font-weight: 600; margin-top: 14px;
   }
-  .sop-card:nth-child(1) .tag { background: rgba(99,102,241,0.15); color: #a78bfa; }
-  .sop-card:nth-child(2) .tag { background: rgba(245,158,11,0.12); color: #f59e0b; }
-  .sop-card:nth-child(3) .tag { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .sop-card:nth-child(1) .tag { background: rgba(99,102,241,0.08); color: #7c3aed; }
+  .sop-card:nth-child(2) .tag { background: rgba(217,119,6,0.08); color: #d97706; }
+  .sop-card:nth-child(3) .tag { background: rgba(22,163,74,0.08); color: #16a34a; }
 
   /* ── Tech Stack ── */
   .tech-strip {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 48px; text-align: center;
+    padding: 48px; text-align: center; box-shadow: var(--shadow);
   }
   .tech-strip .logos { display: flex; flex-wrap: wrap; gap: 32px 48px; justify-content: center; align-items: center; }
   .tech-strip .tech-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-  .tech-strip .tech-name { font-weight: 600; font-size: 14px; }
+  .tech-strip .tech-name { font-weight: 600; font-size: 14px; color: var(--text); }
   .tech-strip .tech-ver { font-size: 12px; color: var(--text-muted); font-family: var(--font-mono); }
 
   /* ── Download ── */
@@ -142,11 +147,11 @@
   .download-card {
     background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius);
     padding: 32px 28px; text-align: center; min-width: 200px; flex: 1; max-width: 280px;
-    transition: all 0.3s;
+    transition: all 0.3s; box-shadow: var(--shadow);
   }
-  .download-card:hover { border-color: var(--accent); }
+  .download-card:hover { border-color: var(--accent); box-shadow: var(--shadow-lg); transform: translateY(-2px); }
   .download-card .os-icon { font-size: 40px; margin-bottom: 12px; }
-  .download-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; }
+  .download-card h4 { font-size: 17px; font-weight: 600; margin-bottom: 4px; color: var(--text); }
   .download-card .ver { font-size: 12px; color: var(--text-muted); margin-bottom: 16px; font-family: var(--font-mono); }
   .download-card .note { font-size: 11px; color: var(--text-muted); margin-top: 10px; }
 
@@ -154,13 +159,14 @@
   footer {
     border-top: 1px solid var(--border); padding: 40px 0;
     text-align: center; font-size: 13px; color: var(--text-muted);
+    background: var(--bg-elevated);
   }
   footer .container { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
 
   /* ── Particles ── */
   .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
   .particle {
-    position: absolute; border-radius: 50%; opacity: 0.35;
+    position: absolute; border-radius: 50%; opacity: 0.3;
     animation: float 6s infinite ease-in-out;
   }
   @keyframes float {
@@ -358,6 +364,12 @@
         <div class="note">Electron + NSIS 安装器</div>
       </div>
     </div>
+    <p style="margin-top:28px;font-size:13px;color:var(--text-muted);line-height:1.8">
+      <strong>macOS 安装说明：</strong>下载解压后将 App 拖入「应用程序」文件夹。<br>
+      首次打开若提示「已损坏 / 无法验证开发者」，请打开<strong>终端</strong>执行：<br>
+      <code style="background:var(--bg);padding:2px 8px;border-radius:4px;font-family:var(--font-mono);font-size:12px">xattr -cr /Applications/StockToolbox.app</code><br>
+      或右键（Control+点击）App → 选择「打开」。
+    </p>
   </div>
 </section>
 

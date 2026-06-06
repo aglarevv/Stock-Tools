@@ -143,7 +143,12 @@ jobs:
             ---
             ### 安装说明
 
-            **macOS**: 下载 `.zip`，解压后将 `StockToolbox.app` 拖入 `/Applications`。首次打开如提示"无法验证开发者"，前往 **系统设置 → 隐私与安全性** 点击"仍要打开"。
+            **macOS**: 下载 `.zip`，解压后将 `StockToolbox.app` 拖入 `/Applications`。
+            首次打开如提示 **"已损坏，无法打开"**，请在终端执行：
+            ```bash
+            xattr -cr /Applications/StockToolbox.app
+            ```
+            或者右键（Control+点击）App → 选择「打开」→ 确认打开。
 
             **Windows**: 下载 `.exe` 安装程序，双击运行。如 SmartScreen 拦截，点击"更多信息 → 仍要运行"。
           draft: false

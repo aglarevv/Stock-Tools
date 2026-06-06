@@ -66,4 +66,9 @@ cp "$ROOT_DIR/react-app/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 touch "$APP_DIR"
 
 plutil -lint "$CONTENTS_DIR/Info.plist"
+
+# ── 代码签名（ad-hoc）—— 避免 Gatekeeper "已损坏" 错误 ──
+echo "Signing app (ad-hoc)..."
+codesign --force --deep --sign - "$APP_DIR" 2>/dev/null || echo "⚠ 签名失败（可能缺少 Xcode Command Line Tools），应用仍可用，首次打开请右键 → 打开"
+
 echo "Built $APP_DIR"
