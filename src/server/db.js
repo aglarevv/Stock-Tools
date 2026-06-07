@@ -185,11 +185,18 @@ async function initMySQL(config) {
 
 async function initSQLite(config) {
   const initSqlJs = require("sql.js");
-  // 明确指定 WASM 文件路径，避免打包后路径解析失败
-  const sqlJsPath = require.resolve("sql.js").replace(/[^/\\]+$/, "");
-  const SQL = await initSqlJs({
-    locateFile: (file) => path.join(sqlJsPath, "dist", file),
-  });
+  let SQL;
+  try {
+    // Node.js 环境下 sql.js 自动定位 WASM 文件
+    SQL = await initSqlJs();
+  } catch (err) {
+    // 回退：显式指定 WASM 路径（兼容 esbuild bundle 等特殊环境）
+    console.warn("[db] sql.js 自动初始化失败，尝试 locateFile 回退:", err.message);
+    const sqlJsDir = require.resolve("sql.js").replace(/sql-wasm\.js$/, "");
+    SQL = await initSqlJs({
+      locateFile: (file) => path.join(sqlJsDir, file),
+    });
+  }
 
   dbDir = getConfigDir();
   if (!fs.existsSync(dbDir)) {
