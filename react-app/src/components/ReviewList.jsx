@@ -69,8 +69,7 @@ export default function ReviewList({ navigate, showToast }) {
                 <span style={{ color: r.pnlAmount >= 0 ? "var(--profit)" : "var(--loss)" }}>{formatMoney.format(r.pnlAmount)}</span>
               </span>
               <Button variant="delete" size="sm" style={{ flexShrink: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(r.id); }} icon="trash"></Button>
+                onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} icon="trash"></Button>
             </div>
           )) : <div className="empty-text">暂无记录</div>}
         </div>
