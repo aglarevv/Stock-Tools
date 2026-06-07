@@ -27,7 +27,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 
 const TARGET_DIR = path.resolve(__dirname, "..", "react-app", "public", "fonts");
-const SOURCE_DIR = process.argv[2];
+const SOURCE_DIR = path.resolve(process.cwd(), process.argv[2] || "");
 
 // 需要的字重映射
 const WEIGHT_MAP = [
@@ -37,14 +37,21 @@ const WEIGHT_MAP = [
 ];
 
 function findSourceFile(dir, name) {
-  for (const ext of [".otf", ".ttf", ".woff2"]) {
-    const p = path.join(dir, name + ext);
-    if (fs.existsSync(p)) return p;
-  }
-  // 也尝试小写和混合大小写
-  for (const ext of [".otf", ".ttf", ".woff2"]) {
-    const p = path.join(dir, name.toLowerCase() + ext);
-    if (fs.existsSync(p)) return p;
+  // 搜索传入目录及其一级子目录
+  const searchDirs = [dir];
+  try {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) searchDirs.push(path.join(dir, entry.name));
+    }
+  } catch { /* ignore */ }
+
+  for (const searchDir of searchDirs) {
+    for (const ext of [".otf", ".ttf", ".woff2"]) {
+      for (const base of [name, name.toLowerCase()]) {
+        const p = path.join(searchDir, base + ext);
+        if (fs.existsSync(p)) return p;
+      }
+    }
   }
   return null;
 }

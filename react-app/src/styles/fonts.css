@@ -21,8 +21,7 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: local("PingFang SC"), local("PingFangSC-Regular");
-  /* 自托管: , url("/fonts/pingfang-regular.woff2") format("woff2") */
+  src: local("PingFang SC"), local("PingFangSC-Regular"), url("/fonts/pingfang-regular.woff2") format("woff2");
 }
 
 @font-face {
@@ -30,8 +29,7 @@
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: local("PingFang SC"), local("PingFangSC-Medium");
-  /* 自托管: , url("/fonts/pingfang-medium.woff2") format("woff2") */
+  src: local("PingFang SC"), local("PingFangSC-Medium"), url("/fonts/pingfang-medium.woff2") format("woff2");
 }
 
 @font-face {
@@ -39,8 +37,7 @@
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: local("PingFang SC"), local("PingFangSC-Semibold");
-  /* 自托管: , url("/fonts/pingfang-semibold.woff2") format("woff2") */
+  src: local("PingFang SC"), local("PingFangSC-Semibold"), url("/fonts/pingfang-semibold.woff2") format("woff2");
 }
 
 @font-face {
@@ -48,6 +45,5 @@
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: local("PingFang SC"), local("PingFangSC-Semibold");
-  /* 自托管: , url("/fonts/pingfang-semibold.woff2") format("woff2") */
+  src: local("PingFang SC"), local("PingFangSC-Semibold"), url("/fonts/pingfang-semibold.woff2") format("woff2");
 }
