@@ -51,24 +51,28 @@ import "./styles/global.css";
   }
 })();
 
-// WKWebView 输入补丁：劫持 input/textarea 的 value setter
-// 确保任何值变更（含粘贴）都派发 input/change 事件 → React onChange 被触发
-requestAnimationFrame(() => {
-  function patch(proto) {
-    const native = Object.getOwnPropertyDescriptor(proto, "value");
-    if (!native) return;
-    Object.defineProperty(proto, "value", {
-      get: native.get,
-      set(v) {
-        native.set.call(this, v);
-        this.dispatchEvent(new Event("input", { bubbles: true }));
-        this.dispatchEvent(new Event("change", { bubbles: true }));
-      },
-    });
-  }
-  patch(HTMLInputElement.prototype);
-  patch(HTMLTextAreaElement.prototype);
-});
+// WKWebView 输入补丁（仅 macOS 原生应用需要）
+// WKWebView 的某些版本在输入/粘贴后不会自动触发 React onChange。
+// 劫持 value setter 确保任何值变更都派发 input/change 事件。
+// 注意：Electron (Chromium) 不需要此补丁，启用反而会干扰正常输入。
+if (!window.electronAPI && !navigator.userAgent.includes("Electron")) {
+  requestAnimationFrame(() => {
+    function patch(proto) {
+      const native = Object.getOwnPropertyDescriptor(proto, "value");
+      if (!native) return;
+      Object.defineProperty(proto, "value", {
+        get: native.get,
+        set(v) {
+          native.set.call(this, v);
+          this.dispatchEvent(new Event("input", { bubbles: true }));
+          this.dispatchEvent(new Event("change", { bubbles: true }));
+        },
+      });
+    }
+    patch(HTMLInputElement.prototype);
+    patch(HTMLTextAreaElement.prototype);
+  });
+}
 
 // ── 粘贴兼容补丁 ──
 // 部分环境（macOS WKWebView、某些浏览器）原生粘贴后不会触达 React 合成事件。
