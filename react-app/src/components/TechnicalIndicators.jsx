@@ -1,4 +1,6 @@
 import { useState } from "react";
+import Icon from "./Icon.jsx";
+import Button from "./Button.jsx";
 
 // ═══════════════════════════════════════════════════════════════
 // 基础K线 + 量能柱组件 — 纯 SVG 线条绘制，红涨绿跌
@@ -196,9 +198,7 @@ export default function TechnicalIndicators() {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 className="topbar-title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-4,marginRight:6}}>
-              <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
-            </svg>
+            <Icon name="indicators" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
             技术指标
           </h1>
           <span className="badge">K线形态 · 量价配合</span>
@@ -221,15 +221,14 @@ export default function TechnicalIndicators() {
         <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>筛选：</span>
         {[
           { key: "all", label: "全部", count: PATTERNS.length },
-          { key: "bullish", label: "📈 看涨", count: PATTERNS.filter(p => p.dir === "bullish").length },
-          { key: "bearish", label: "📉 看跌", count: PATTERNS.filter(p => p.dir === "bearish").length },
-          { key: "neutral", label: "⚖️ 中性", count: PATTERNS.filter(p => p.dir === "neutral").length },
+          { key: "bullish", label: "看涨", count: PATTERNS.filter(p => p.dir === "bullish").length, icon: "trending-up" },
+          { key: "bearish", label: "看跌", count: PATTERNS.filter(p => p.dir === "bearish").length, icon: "trending-down" },
+          { key: "neutral", label: "中性", count: PATTERNS.filter(p => p.dir === "neutral").length, icon: "minus" },
         ].map(f => (
-          <button key={f.key} className={`btn ${filter === f.key ? "btn-primary" : "btn-ghost"}`}
-            style={{ fontSize: 12, padding: "4px 12px" }}
+          <Button key={f.key} variant={filter === f.key ? "primary" : "ghost"} size="sm" icon={f.icon}
             onClick={() => setFilter(f.key)}>
             {f.label} ({f.count})
-          </button>
+          </Button>
         ))}
       </div>
 
@@ -243,7 +242,7 @@ export default function TechnicalIndicators() {
                 color: p.dir === "bullish" ? RED : p.dir === "bearish" ? GREEN : "var(--accent)",
                 fontSize: 10,
               }}>
-                {p.dir === "bullish" ? "📈 看涨" : p.dir === "bearish" ? "📉 看跌" : "⚖️ 中性"}
+                {p.dir === "bullish" ? <><Icon name="trending-up" size={12} style={{ verticalAlign: -1 }} /> 看涨</> : p.dir === "bearish" ? <><Icon name="trending-down" size={12} style={{ verticalAlign: -1 }} /> 看跌</> : <><Icon name="minus" size={12} style={{ verticalAlign: -1 }} /> 中性</>}
               </span>
             </div>
             <div className="card-body">
@@ -255,7 +254,7 @@ export default function TechnicalIndicators() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 6 }}>{p.desc}</p>
                   <p style={{ fontSize: 11, lineHeight: 1.5, color: "var(--accent)", fontWeight: 500, marginBottom: 4 }}>
-                    📊 量能分析：{p.volumeNote}
+                    <Icon name="bar-chart" size={12} style={{ verticalAlign: -1, marginRight: 2 }} /> 量能分析：{p.volumeNote}
                   </p>
                 </div>
               </div>

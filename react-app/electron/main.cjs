@@ -31,6 +31,16 @@ let backendProcess = null;
 let appIsQuitting = false;
 
 // ---------------------------------------------------------------------------
+// 渲染优化：Windows 字体清晰度
+// ---------------------------------------------------------------------------
+// DirectWrite 提供更清晰的字体渲染，解决 Windows 上字体模糊问题
+if (process.platform === "win32") {
+  app.commandLine.appendSwitch("enable-directwrite", "1");
+  // 禁用 GPU 渲染的次像素定位，提升文字清晰度
+  app.commandLine.appendSwitch("disable-font-subpixel-positioning");
+}
+
+// ---------------------------------------------------------------------------
 // 解析服务器脚本路径（兼容 开发 / 生产）
 // ---------------------------------------------------------------------------
 function resolveServerPath() {
@@ -172,12 +182,20 @@ function createWindow() {
     autoHideMenuBar: true,
     show: false,
     titleBarStyle: isWin ? "hidden" : "hiddenInset",
+    backgroundColor: "#f5f5f7",
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,
+      // Windows 字体渲染优化
+      enableWebSQL: false,
     },
   });
+
+  // Windows 渲染优化：设置窗口背景色避免白闪
+  if (isWin) {
+    mainWindow.setBackgroundColor("#f5f5f7");
+  }
 
   mainWindow.setMenuBarVisibility(false);
 

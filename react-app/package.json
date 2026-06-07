@@ -1,17 +1,19 @@
 {
   "name": "toolbox",
-  "version": "2.0.2",
+  "version": "2.1.0",
+  "_note": "2.1.0: 组件化系统重构 + RSS 去重 + 文章优先级 + 周报月报 + 代码混淆",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && node ../scripts/obfuscate.js dist/assets",
+    "build:raw": "vite build",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && electron-builder",
-    "electron:build:mac": "vite build && electron-builder --mac",
-    "electron:build:win": "vite build && electron-builder --win"
+    "electron:build": "vite build && node ../scripts/obfuscate.js electron && electron-builder",
+    "electron:build:mac": "vite build && node ../scripts/obfuscate.js electron && electron-builder --mac",
+    "electron:build:win": "vite build && node ../scripts/obfuscate.js electron && electron-builder --win"
   },
   "build": {
     "appId": "local.toolbox",

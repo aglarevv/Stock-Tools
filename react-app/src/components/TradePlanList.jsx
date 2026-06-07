@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api.js";
 import { formatMoney, escapeHtml } from "../utils/helpers.js";
+import Icon from "./Icon.jsx";
+import Button from "./Button.jsx";
 
 const PAGE_SIZE = 15;
 
@@ -34,7 +36,10 @@ export default function TradePlanList({ navigate, showToast }) {
     <div className="page">
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1 className="topbar-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-4,marginRight:6}}><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>交易记录</h1>
+          <h1 className="topbar-title">
+            <Icon name="trending-up" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
+            交易记录
+          </h1>
           <span className="badge">全部记录</span>
         </div>
       </div>
@@ -43,8 +48,9 @@ export default function TradePlanList({ navigate, showToast }) {
         <div className="card-header"><h2>筛选</h2><span className="card-hint">共 {records.length} 条</span></div>
         <div className="card-body">
           <div className="filter-row">
-            <input placeholder="🔍 股票名称…" value={symbol} onChange={(e) => setSymbol(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} style={{ flex: 1, minWidth: 200 }} />
-            <button className="btn btn-ghost" onClick={load}>查询</button>
+            <Icon name="search" size={14} style={{ flexShrink: 0, color: "var(--text-muted)" }} />
+            <input placeholder="股票名称…" value={symbol} onChange={(e) => setSymbol(e.target.value)} onKeyDown={(e) => e.key === "Enter" && load()} style={{ flex: 1, minWidth: 200 }} />
+            <Button variant="ghost" onClick={load}>查询</Button>
           </div>
         </div>
       </div>
@@ -62,9 +68,9 @@ export default function TradePlanList({ navigate, showToast }) {
                 {r.tradeDirection === "short" && <span style={{ color: "var(--loss)", marginLeft: 4 }}>做空</span>}
                 {r.positionPct < 100 && <span style={{ color: "var(--text-muted)", marginLeft: 4 }}>{r.positionPct}%仓</span>}
               </span>
-              <button className="btn btn-ghost btn-delete" style={{ flexShrink: 0, padding: "2px 8px", fontSize: 11 }}
+              <Button variant="delete" size="sm" style={{ flexShrink: 0 }}
                 onClick={(e) => e.stopPropagation()}
-                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(r.id); }}>🗑</button>
+                onMouseDown={(e) => { e.stopPropagation(); e.preventDefault(); handleDelete(r.id); }} icon="trash"></Button>
             </div>
           )) : <div className="empty-text">暂无记录</div>}
         </div>
@@ -72,9 +78,9 @@ export default function TradePlanList({ navigate, showToast }) {
 
       {records.length > PAGE_SIZE && (
         <div className="pagination">
-          <button className="btn btn-ghost" disabled={p <= 1} onClick={() => setPage(p - 1)}>← 上一页</button>
+          <Button variant="ghost" disabled={p <= 1} onClick={() => setPage(p - 1)}>← 上一页</Button>
           <span>第 {p} / {totalPages} 页</span>
-          <button className="btn btn-ghost" disabled={p >= totalPages} onClick={() => setPage(p + 1)}>下一页 →</button>
+          <Button variant="ghost" disabled={p >= totalPages} onClick={() => setPage(p + 1)}>下一页 →</Button>
         </div>
       )}
     </div>

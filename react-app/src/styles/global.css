@@ -23,10 +23,17 @@
   --radius-lg: 12px;
   --radius-xl: 16px;
   --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px var(--border-subtle);
-  --font-sans: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", monospace;
+  /* ── 字体家族 ──
+   * Windows 上 Segoe UI + Microsoft YaHei 渲染更清晰；
+   * macOS 上 San Francisco + PingFang SC 更美观。
+   */
+  --font-sans: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --titlebar-h: 36px;
+  /* ── 字体渲染 ── */
+  --font-smoothing: antialiased;
+  --text-rendering: optimizeLegibility;
 }
 
 /* 深色主题 */
@@ -46,7 +53,23 @@
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-font-smoothing: antialiased; background: var(--bg-root); }
+
+/* ── 跨平台字体渲染优化 ──
+ * macOS: antialiased 让字体更细更清晰（适合 Retina）
+ * Windows: auto 避免字体过细导致模糊（适合非 Retina 和 DirectWrite）
+ * 通过 JS 在 main.jsx 中动态设置 data-platform 属性来区分
+ */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: var(--text-rendering);
+  background: var(--bg-root);
+}
+/* Windows 平台：关闭次像素抗锯齿的过度平滑，使用 auto 更清晰 */
+html[data-platform="win32"] {
+  -webkit-font-smoothing: auto;
+  -moz-osx-font-smoothing: auto;
+}
 
 /* 标题栏拖拽区域（左侧可拖拽，右侧留空给窗口按钮） */
 .topbar { -webkit-app-region: drag; }
@@ -95,19 +118,32 @@ body {
   font-size: 11px; font-weight: 600; font-family: var(--font-mono);
   background: var(--accent-soft); color: var(--accent); border: 1px solid rgba(99,102,241,0.2); }
 
-/* Buttons */
+/* ── Buttons ──
+ * 配合 Button.jsx 组件使用，保持全项目按钮风格统一
+ */
 .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px;
   border-radius: var(--radius-sm); font-size: 12px; font-weight: 600; font-family: inherit;
-  cursor: pointer; transition: all 0.15s var(--ease-out); white-space: nowrap; }
+  cursor: pointer; transition: all 0.15s var(--ease-out); white-space: nowrap;
+  line-height: 1.4; user-select: none; -webkit-user-select: none; }
 .btn:active:not(:disabled) { transform: scale(0.95); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
+
+/* 尺寸变体 */
+.btn-sm { padding: 4px 10px; font-size: 11px; gap: 4px; }
+
+/* 风格变体 */
 .btn-primary { background: var(--accent); color: #fff; border: 1px solid var(--accent); }
 .btn-primary:hover:not(:disabled) { background: #5558e6; box-shadow: 0 2px 12px var(--accent-glow); }
-.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
 .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border-default); }
-.btn-ghost:hover { color: var(--text-primary); border-color: var(--border-strong); background: var(--bg-hover); }
-.btn-delete { color: var(--loss); border-color: var(--loss); opacity: 0.7; }
-.btn-delete:hover { opacity: 1; background: var(--loss-soft); box-shadow: 0 0 8px rgba(220,38,38,0.2); }
+.btn-ghost:hover:not(:disabled) { color: var(--text-primary); border-color: var(--border-default); background: var(--bg-hover); }
+.btn-delete { color: var(--loss); border: 1px solid var(--loss); opacity: 0.7; }
+.btn-delete:hover:not(:disabled) { opacity: 1; background: var(--loss-soft); box-shadow: 0 0 8px rgba(220,38,38,0.2); }
 .btn-full { width: 100%; justify-content: center; }
+
+/* 加载中 spinner */
+.btn-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor;
+  border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* Metrics */
 .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

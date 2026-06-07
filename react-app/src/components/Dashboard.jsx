@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { api } from "../utils/api.js";
 import { formatMoney, escapeHtml } from "../utils/helpers.js";
+import Icon from "./Icon.jsx";
+import Button from "./Button.jsx";
 
 export default function Dashboard({ navigate, showToast }) {
   const [data, setData] = useState(null);
@@ -18,7 +20,10 @@ export default function Dashboard({ navigate, showToast }) {
     <div className="page">
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1 className="topbar-title"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-4,marginRight:6}}><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>看板</h1>
+          <h1 className="topbar-title">
+            <Icon name="dashboard" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
+            看板
+          </h1>
           <span className="badge">数据概览</span>
         </div>
       </div>

@@ -1,4 +1,4 @@
-# 🧰 股票工具箱 · StockToolbox
+# 🧰 股票工具箱 · StockToolbox `v2.1.0`
 
 > **官网地址：https://aglarevv.github.io/Stock-Tools**
 
@@ -19,9 +19,20 @@
 | 🤖 **AI 复盘助手** | 基于复盘数据多轮对话，支持 OpenAI / DeepSeek，思考模式 |
 | 📐 **合约计算** | 合约止盈止损 + 收益率反推价格 |
 | 📊 **技术指标** | 14 种 K 线形态识别、量能柱分析、多空方向筛选 |
-| 📰 **每日时事** | 3-SOP 日报体系 + AI 摘要生成 + RSS 源自定义 + 历史查阅 |
+| 📰 **每日时事** | 3-SOP 日报 + AI 摘要 + RSS 去重 + 文章优先级评分 + 周报/月报精选 |
 | ⚙️ **设置** | 数据库配置、AI 接口、OPML 源管理、API Key 加密存储 |
 | 📄 **文件解析** | 拖拽上传 PDF / DOCX / TXT / MD 文件，AI 辅助分析 |
+
+### v2.1.0 新增特性
+
+| 特性 | 说明 |
+|------|------|
+| 🎨 **组件化系统** | `Icon` / `Button` 组件统一管理全项目图标和按钮风格 |
+| 🔄 **RSS 去重** | 记录已使用的 RSS 文章链接，次日无新文章时不重复生成日报 |
+| ⭐ **文章优先级评分** | 关键词 + 时间 + 情感综合评分，重要新闻优先进入日报 |
+| 📅 **周报/月报精选** | AI 基于历史日报文章生成周期精选摘要，独立存储可查阅 |
+| 🔒 **代码混淆** | 构建时自动混淆前端、服务端、Electron 代码，提高逆向门槛 |
+| 🪟 **Windows 字体优化** | DirectWrite + 字体平滑平台自适应，解决字体模糊问题 |
 
 ---
 
@@ -174,7 +185,12 @@ npm run electron:build:win       # → release/工具箱 Setup.exe
 
 ### 构建原理
 
-后端 `server.js` 通过 **esbuild** 打包为单文件 `server.bundle.js`（~674KB），将 `feedparser`、`node-fetch` 及全部 20+ 子依赖内联。仅保留 `mysql2`（原生绑定）、`sql.js`（WASM）、`mammoth`（Word 解析）、`pdf-parse`（PDF 解析）作为外部模块，彻底消除 Windows 下逐个排查缺失依赖的问题。
+后端 `server.js` 通过 **esbuild** 打包为单文件 `server.bundle.js`（~690KB），将 `feedparser`、`node-fetch` 及全部 20+ 子依赖内联。仅保留 `mysql2`（原生绑定）、`sql.js`（WASM）、`mammoth`（Word 解析）、`pdf-parse`（PDF 解析）作为外部模块，彻底消除 Windows 下逐个排查缺失依赖的问题。
+
+构建完成后自动执行 **javascript-obfuscator** 代码混淆：
+- 变量名 mangling + 字符串 base64 编码 + 自保护机制
+- 前端 JS 膨胀约 2.9×，服务端膨胀约 1.7×
+- 混淆配置位于 `scripts/obfuscate-config.json`，可独立调参
 
 ---
 
@@ -201,17 +217,22 @@ npm run electron:build:win       # → release/工具箱 Setup.exe
 | `POST` | `/api/ai/chat` | AI 复盘对话（需 API Key，支持 DeepSeek 思维链） |
 | `POST` | `/api/ai/parse-file` | 文件解析（pdf/docx/txt/md） |
 | `POST` | `/api/ai/daily-digest` | AI 生成 3-SOP 日报摘要 |
+| `POST` | `/api/ai/weekly-digest` | AI 生成周报精选（基于过去 7 天日报） |
+| `POST` | `/api/ai/monthly-digest` | AI 生成月报精选（基于过去 30 天日报） |
 
 ### 每日时事
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| `GET` | `/api/daily-news` | 采集 RSS + 3-SOP 分类 + 已保存摘要 |
+| `GET` | `/api/daily-news` | 采集 RSS + 去重 + 优先级排序 + 3-SOP 分类 + 已保存摘要 |
 | `GET` | `/api/daily-digests` | 历史日报日期列表 |
 | `GET` | `/api/daily-digest?date=` | 按日期查询历史日报（含角标恢复） |
-| `GET` | `/api/sources/opml` | 读取当前 OPML 配置 |
+| `GET` | `/api/settings` | 读取应用设置 |
+| `POST` | `/api/settings` | 保存应用设置 |
+| `GET/POST` | `/api/sources/opml` | 读取/保存 OPML 配置 |
 | `GET` | `/api/sources/opml?default=true` | 读取捆绑的默认 OPML（恢复出厂） |
-| `POST` | `/api/sources/opml` | 保存 OPML 配置 |
+| `GET` | `/api/periodic-digests` | 历史周报/月报列表 |
+| `GET` | `/api/periodic-digest?id=` | 按 ID 查询单条周报/月报详情 |
 
 ---
 

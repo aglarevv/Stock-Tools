@@ -31,6 +31,17 @@ import "./styles/global.css";
   }
 })();
 
+// ── 检测操作系统平台，用于 CSS 字体渲染优化 ──
+// Windows 上使用 -webkit-font-smoothing: auto 避免字体模糊
+(function detectPlatform() {
+  const platform = navigator.platform?.toLowerCase() || "";
+  if (platform.includes("win")) {
+    document.documentElement.setAttribute("data-platform", "win32");
+  } else if (platform.includes("mac")) {
+    document.documentElement.setAttribute("data-platform", "mac");
+  }
+})();
+
 // WKWebView 输入补丁：劫持 input/textarea 的 value setter
 // 确保任何值变更（含粘贴）都派发 input/change 事件 → React onChange 被触发
 requestAnimationFrame(() => {

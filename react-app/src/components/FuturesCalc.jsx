@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { formatMoney, futuresDefaults, toNumber } from "../utils/helpers.js";
+import Button from "./Button.jsx";
 
 export default function FuturesCalc() {
   const [f, setF] = useState({ ...futuresDefaults });
@@ -72,7 +73,7 @@ export default function FuturesCalc() {
               <div className="form-field"><label>最大止损率 (%)</label><input type="number" value={reverse.loss} onChange={(e) => setReverse((r) => ({ ...r, loss: e.target.value }))} /></div>
             </div>
             <div className="form-row"><div className="form-field"><label>持仓类型</label><select value={reverse.position} onChange={(e) => setReverse((r) => ({ ...r, position: e.target.value }))}><option value="long">做多</option><option value="short">做空</option></select></div></div>
-            <button className="btn btn-primary btn-full" onClick={calcReverse} style={{ marginTop: 8 }}>计算止盈止损价格</button>
+            <Button variant="primary" fullWidth onClick={calcReverse} style={{ marginTop: 8 }}>计算止盈止损价格</Button>
             {reverse.result && (
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 12 }}>
                 <div style={{ padding: 10, borderRadius: 6, background: "var(--bg-input)", border: "1px solid var(--border-subtle)" }}>

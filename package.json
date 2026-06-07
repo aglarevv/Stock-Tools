@@ -1,11 +1,13 @@
 {
   "name": "stock-toolbox",
-  "version": "1.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "macOS stock toolbox with local MySQL persistence.",
   "scripts": {
     "start": "node src/server/server.js",
-    "build:mac": "./scripts/build-mac.sh"
+    "build:mac": "./scripts/build-mac.sh",
+    "build:server": "esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --external:mammoth --external:pdf-parse --outfile=src/server/server.bundle.js && node scripts/obfuscate.js src/server/server.bundle.js src/server/db.js src/server/keywords.js",
+    "obfuscate": "node scripts/obfuscate.js"
   },
   "dependencies": {
     "feedparser": "^2.6.0",
@@ -16,6 +18,7 @@
     "sql.js": "^1.10.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.0"
+    "esbuild": "^0.28.0",
+    "javascript-obfuscator": "^5.4.3"
   }
 }

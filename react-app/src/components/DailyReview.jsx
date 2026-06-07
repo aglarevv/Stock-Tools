@@ -14,6 +14,8 @@ import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, localDateString, reviewDefaults, toNumber } from "../utils/helpers.js";
 import { sectionConfig, methodologySteps, calcCompleteness, REVIEW_DRAFT_KEY } from "../utils/reviewConfig.js";
 import { useAiChat } from "../hooks/useAiChat.js";
+import Button, { TabButton } from "./Button.jsx";
+import Icon from "./Icon.jsx";
 import AiChatPanel from "./AiChatPanel.jsx";
 import ReviewSectionCard from "./ReviewSectionCard.jsx";
 import ReviewEditModal from "./ReviewEditModal.jsx";
@@ -116,8 +118,8 @@ export default function DailyReview({ navigate, editReviewId, showToast }) {
           <span className="badge">{isClosed ? `${toNumber(review.pnlRate).toFixed(2)}%` : "未卖出"}</span>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={() => { setReview(reviewDefaults(today)); localStorage.removeItem(REVIEW_DRAFT_KEY); showToast("表单已清空", "info"); }}>清空</button>
-          <button className="btn btn-primary" disabled={!dbOk || saving} onClick={save}>{saving ? "保存中…" : "保存"}</button>
+          <Button variant="ghost" onClick={() => { setReview(reviewDefaults(today)); localStorage.removeItem(REVIEW_DRAFT_KEY); showToast("表单已清空", "info"); }}>清空</Button>
+          <Button variant="primary" disabled={!dbOk || saving} loading={saving} onClick={save}>保存</Button>
         </div>
       </div>
 
@@ -149,8 +151,8 @@ export default function DailyReview({ navigate, editReviewId, showToast }) {
 
       {/* ── 标签切换 ── */}
       <div style={{ display: "flex", gap: 0, background: "var(--border-subtle)", borderRadius: "var(--radius-sm)", overflow: "hidden", width: "fit-content" }}>
-        <button className={`btn ${tab === "summary" ? "btn-primary" : "btn-ghost"}`} style={{ borderRadius: 0, border: "none" }} onClick={() => setTab("summary")}>📋 复盘摘要</button>
-        <button className={`btn ${tab === "methodology" ? "btn-primary" : "btn-ghost"}`} style={{ borderRadius: 0, border: "none" }} onClick={() => setTab("methodology")}>📖 复盘方法论</button>
+        <TabButton active={tab === "summary"} onClick={() => setTab("summary")}><Icon name="clipboard" size={14} style={{ verticalAlign: -2, marginRight: 2 }} /> 复盘摘要</TabButton>
+        <TabButton active={tab === "methodology"} onClick={() => setTab("methodology")}><Icon name="book" size={14} style={{ verticalAlign: -2, marginRight: 2 }} /> 复盘方法论</TabButton>
       </div>
 
       {/* ── 复盘摘要标签页 ── */}

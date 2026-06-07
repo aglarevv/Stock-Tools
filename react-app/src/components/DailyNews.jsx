@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { api } from "../utils/api.js";
+import Icon from "./Icon.jsx";
+import Button from "./Button.jsx";
 
 /**
  * 每日时事 — 3-SOP 分析日报 + AI 摘要 + 历史查看
@@ -28,9 +30,18 @@ export default function DailyNews({ showToast }) {
   const [opmlContent, setOpmlContent] = useState("");
   const [opmlLoading, setOpmlLoading] = useState(false);
 
+  // 周报/月报精选
+  const [weeklyDigest, setWeeklyDigest] = useState(null);
+  const [monthlyDigest, setMonthlyDigest] = useState(null);
+  const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const [monthlyLoading, setMonthlyLoading] = useState(false);
+  const [periodicList, setPeriodicList] = useState([]);
+  const [showPeriodicHistory, setShowPeriodicHistory] = useState(false);
+  const [viewingPeriodic, setViewingPeriodic] = useState(null);
+
   const modalRef = useRef(null);
 
-  useEffect(() => { loadArticles(); loadAiConfig(); loadHistoryList(); }, []);
+  useEffect(() => { loadArticles(); loadAiConfig(); loadHistoryList(); loadPeriodicList(); }, []);
 
   async function loadArticles() {
     setLoading(true);
@@ -118,6 +129,59 @@ export default function DailyNews({ showToast }) {
       showToast(`AI 摘要生成失败：${e.message}`, "error");
     } finally { setDigestLoading(false); }
   }, [data, aiConfig, showToast]);
+
+  // ── 周报/月报精选 ──
+  async function loadPeriodicList() {
+    try {
+      const res = await api.periodicDigests();
+      setPeriodicList(res.digests || []);
+    } catch { /* ignore */ }
+  }
+
+  async function generateWeeklyDigest() {
+    if (!aiConfig) { showToast("请先在设置中配置 AI API Key", "error"); return; }
+    setWeeklyLoading(true);
+    setWeeklyDigest(null);
+    try {
+      const res = await api.weeklyDigest(aiConfig);
+      setWeeklyDigest(res);
+      showToast(`✅ ${res.periodLabel} 周报已生成`, "success");
+      loadPeriodicList();
+    } catch (e) {
+      if (e.message?.includes("暂无日报数据")) {
+        showToast("本周暂无日报数据，请先至少生成一篇日报摘要", "warning");
+      } else {
+        showToast(`周报生成失败：${e.message}`, "error");
+      }
+    } finally { setWeeklyLoading(false); }
+  }
+
+  async function generateMonthlyDigest() {
+    if (!aiConfig) { showToast("请先在设置中配置 AI API Key", "error"); return; }
+    setMonthlyLoading(true);
+    setMonthlyDigest(null);
+    try {
+      const res = await api.monthlyDigest(aiConfig);
+      setMonthlyDigest(res);
+      showToast(`✅ ${res.periodLabel} 月报已生成`, "success");
+      loadPeriodicList();
+    } catch (e) {
+      if (e.message?.includes("暂无日报数据")) {
+        showToast("本月暂无日报数据，请先至少生成一篇日报摘要", "warning");
+      } else {
+        showToast(`月报生成失败：${e.message}`, "error");
+      }
+    } finally { setMonthlyLoading(false); }
+  }
+
+  async function viewPeriodicDigest(id) {
+    try {
+      const res = await api.periodicDigestById(id);
+      setViewingPeriodic(res);
+    } catch (e) {
+      showToast(`加载失败：${e.message}`, "error");
+    }
+  }
 
   // 关闭弹窗（点击背景）
   function onModalBackdrop(e) { if (e.target === e.currentTarget) setShowAllArticles(false); }
@@ -277,20 +341,19 @@ export default function DailyNews({ showToast }) {
       {showHistory && (
         <div className="card" style={{ marginBottom: 16, borderColor: "var(--accent)", borderWidth: 2 }}>
           <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <h2>📅 历史日报</h2>
-            <button className="btn btn-ghost" onClick={() => { setShowHistory(false); setHistoryDigest(null); }} style={{ fontSize: 12 }}>✕ 关闭</button>
+            <h2><Icon name="calendar" size={16} style={{ verticalAlign: -2, marginRight: 4 }} /> 历史日报</h2>
+            <Button variant="ghost" size="sm" icon="x" onClick={() => { setShowHistory(false); setHistoryDigest(null); }}>关闭</Button>
           </div>
           <div className="card-body">
             {historyList.length === 0 && <div className="empty-text" style={{ fontSize: 13 }}>暂无历史日报记录</div>}
             {historyList.length > 0 && (
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: historyDigest ? 16 : 0 }}>
                 {historyList.map((h) => (
-                  <button key={h.date} className={`btn ${historyDigest?.date === h.date ? "btn-primary" : "btn-ghost"}`}
-                    style={{ fontSize: 12, padding: "4px 12px" }}
+                  <Button key={h.date} variant={historyDigest?.date === h.date ? "primary" : "ghost"} size="sm"
                     onClick={() => viewHistory(h.date)}>
                     {h.date}
                     <span className="badge" style={{ marginLeft: 6, fontSize: 10, background: h.sentiment?.includes("乐观") ? "var(--profit-soft)" : h.sentiment?.includes("悲观") ? "var(--loss-soft)" : "var(--accent-soft)", color: h.sentiment?.includes("乐观") ? "var(--profit)" : h.sentiment?.includes("悲观") ? "var(--loss)" : "var(--accent)" }}>{h.sentiment}</span>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -314,23 +377,26 @@ export default function DailyNews({ showToast }) {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 className="topbar-title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{verticalAlign:-4,marginRight:6}}>
-              <path d="M4 11a9 9 0 0 1 9 9"/><path d="M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>
-            </svg>
+            <Icon name="news" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
             每日时事
           </h1>
           <span className="badge">{data.date}</span>
+          {data.duplicateCount > 0 && (
+            <span className="badge" style={{ background: data.hasNewArticles ? "rgba(22,163,74,0.08)" : "rgba(217,119,6,0.08)", color: data.hasNewArticles ? "var(--profit)" : "var(--warning)", fontSize: 10 }}>
+              {data.newArticlesCount || 0} 篇新
+            </span>
+          )}
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           {historyList.length > 0 && (
-            <button className="btn btn-ghost" onClick={() => { setShowHistory(!showHistory); if (!showHistory) setHistoryDigest(null); }} style={{ fontSize: 12 }}>
-              📅 历史 ({historyList.length})
-            </button>
+            <Button variant="ghost" size="sm" icon="calendar" onClick={() => { setShowHistory(!showHistory); if (!showHistory) setHistoryDigest(null); }}>
+              历史 ({historyList.length})
+            </Button>
           )}
-          <button className="btn btn-ghost" onClick={openOpmlEditor} style={{ fontSize: 12 }} title="管理 RSS 源">📡 源管理</button>
-          <button className="btn btn-ghost" onClick={refreshArticles} disabled={refreshing} style={{ fontSize: 12 }}>
-            {refreshing ? "⏳ 刷新中…" : "🔄 刷新文章"}
-          </button>
+          <Button variant="ghost" size="sm" icon="rss" onClick={openOpmlEditor} title="管理 RSS 源">源管理</Button>
+          <Button variant="ghost" size="sm" icon="refresh" onClick={refreshArticles} disabled={refreshing} loading={refreshing}>
+            刷新文章
+          </Button>
         </div>
       </div>
 
@@ -338,26 +404,34 @@ export default function DailyNews({ showToast }) {
       <div className="card" style={{ borderColor: hasDigest ? "var(--accent)" : "var(--border-subtle)", borderWidth: 2 }}>
         <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
           <h2 style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 2a4 4 0 0 1 4 4v1h2a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1h2V6a4 4 0 0 1 4-4z"/><polyline points="9 12 11 14 15 10"/>
-            </svg>
+            <Icon name="check" size={20} />
             AI 日报摘要
             {digestMeta?.sentiment && <span className="badge" style={{ background: digestMeta.sentiment.includes("乐观") ? "var(--profit-soft)" : digestMeta.sentiment.includes("悲观") ? "var(--loss-soft)" : "var(--accent-soft)", color: digestMeta.sentiment.includes("乐观") ? "var(--profit)" : digestMeta.sentiment.includes("悲观") ? "var(--loss)" : "var(--accent)", fontSize: 11 }}>{digestMeta.sentiment}</span>}
             {digestMeta?.createdAt && <span style={{ fontSize: 11, color: "var(--text-muted)", fontWeight: 400 }}>生成于 {new Date(digestMeta.createdAt).toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}</span>}
           </h2>
-          <button className="btn btn-primary" onClick={generateDigest} disabled={digestLoading || !aiConfigured} style={{ fontSize: 13, padding: "6px 16px" }} title={!aiConfigured ? "请先在设置中配置 AI API Key" : ""}>
-            {digestLoading ? "⏳ 生成中…" : hasDigest ? "🔄 重新生成" : "🤖 AI 生成日报摘要"}
-          </button>
+          <Button variant="primary" icon={hasDigest ? "refresh" : "sparkles"} onClick={generateDigest}
+            disabled={digestLoading || !aiConfigured || (!data?.hasNewArticles && data?.duplicateCount > 0)}
+            loading={digestLoading}
+            title={!aiConfigured ? "请先在设置中配置 AI API Key" : (!data?.hasNewArticles && data?.duplicateCount > 0) ? "今日没有新文章，无法生成新的日报摘要" : ""}
+            style={{ fontSize: 13, padding: "6px 16px" }}>
+            {hasDigest ? "重新生成" : "AI 生成日报摘要"}
+          </Button>
         </div>
         <div className="card-body">
-          {!aiConfigured && !hasDigest && <div className="empty-text" style={{ padding: 12, fontSize: 13, color: "var(--text-muted)" }}>⚠️ 请先在「设置」中配置 AI API Key（支持 DeepSeek / OpenAI 兼容接口），即可生成 3-SOP 日报摘要</div>}
-          {!aiConfigured && hasDigest && <div style={{ padding: "4px 0 8px", fontSize: 11, color: "var(--text-muted)" }}>⚠️ 未配置 AI 接口，显示的是历史摘要。配置后可重新生成。</div>}
-          {aiConfigured && !hasDigest && !digestLoading && <div className="empty-text" style={{ padding: 12, fontSize: 13, color: "var(--text-muted)" }}>点击上方按钮，AI 复盘助手按 3-SOP 结构生成日报摘要，关键信息标注来源引用</div>}
+          {!aiConfigured && !hasDigest && <div className="empty-text" style={{ padding: 12, fontSize: 13, color: "var(--text-muted)" }}><Icon name="alert-triangle" size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> 请先在「设置」中配置 AI API Key（支持 DeepSeek / OpenAI 兼容接口），即可生成 3-SOP 日报摘要</div>}
+          {!aiConfigured && hasDigest && <div style={{ padding: "4px 0 8px", fontSize: 11, color: "var(--text-muted)" }}><Icon name="alert-triangle" size={12} style={{ verticalAlign: -2, marginRight: 2 }} /> 未配置 AI 接口，显示的是历史摘要。配置后可重新生成。</div>}
+          {aiConfigured && !hasDigest && !digestLoading && data?.hasNewArticles && <div className="empty-text" style={{ padding: 12, fontSize: 13, color: "var(--text-muted)" }}>点击上方按钮，AI 复盘助手按 3-SOP 结构生成日报摘要，关键信息标注来源引用</div>}
+          {aiConfigured && !hasDigest && !digestLoading && !data?.hasNewArticles && (
+            <div className="empty-text" style={{ padding: 12, fontSize: 13, color: "var(--warning)" }}>
+              <Icon name="alert-triangle" size={14} style={{ verticalAlign: -2, marginRight: 4 }} />
+              今日 RSS 无新文章（{data.duplicateCount || 0} 篇已收录），暂无新的日报内容可生成。
+            </div>
+          )}
           {digestLoading && <div className="empty-text" style={{ padding: 20 }}>⏳ AI 正在按 3-SOP 结构分析今日文章，生成日报摘要…</div>}
           {hasDigest && <div className="digest-content" style={{ fontSize: 14, lineHeight: 1.85, wordBreak: "break-word" }}>{renderDigest(digest)}</div>}
           {hasDigest && (
             <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border-subtle)", fontSize: 11, color: "var(--text-muted)", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
-              <span>📎 点击角标 [N] 跳转原文 · <strong style={{ color: "var(--profit)" }}>利好</strong>/<strong style={{ color: "var(--loss)" }}>利空</strong>已高亮标注</span>
+              <span><Icon name="paperclip" size={12} style={{ verticalAlign: -1, marginRight: 2 }} /> 点击角标 [N] 跳转原文 · <strong style={{ color: "var(--profit)" }}>利好</strong>/<strong style={{ color: "var(--loss)" }}>利空</strong>已高亮标注</span>
               {digestMeta?.sourceCount && <span>基于 {digestMeta.sourceCount} 篇来源</span>}
             </div>
           )}
@@ -367,7 +441,7 @@ export default function DailyNews({ showToast }) {
       {/* 市场情绪总览 */}
       <div className="metrics-row">
         <div className="metric-card metric-info" style={{ cursor: "pointer" }} onClick={() => allArts.length > 0 && setShowAllArticles(true)} title="点击查看全部文章列表">
-          <div className="metric-label">文章总数 🔍</div>
+          <div className="metric-label">文章总数 <Icon name="search" size={10} style={{ verticalAlign: 0 }} /></div>
           <div className="metric-value" style={{ color: "var(--accent)" }}>{data.totalArticles}</div>
           <div className="metric-desc">{data.topics.length} 个 SOP 分类 · 点击查看</div>
         </div>
@@ -383,14 +457,103 @@ export default function DailyNews({ showToast }) {
         </div>
       </div>
 
+      {/* ── 周报/月报精选卡片 ── */}
+      <div className="card">
+        <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+          <h2><Icon name="clock" size={16} style={{ verticalAlign: -3, marginRight: 4 }} /> 周报/月报精选</h2>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button variant="ghost" size="sm" icon="calendar" onClick={() => { setShowPeriodicHistory(!showPeriodicHistory); if (!showPeriodicHistory) setViewingPeriodic(null); }}>
+              历史记录 ({periodicList.length})
+            </Button>
+            <Button variant="primary" size="sm" icon="sparkles" onClick={generateWeeklyDigest} disabled={weeklyLoading || !aiConfigured} loading={weeklyLoading}>
+              生成周报
+            </Button>
+            <Button variant="primary" size="sm" icon="sparkles" onClick={generateMonthlyDigest} disabled={monthlyLoading || !aiConfigured} loading={monthlyLoading}>
+              生成月报
+            </Button>
+          </div>
+        </div>
+        <div className="card-body">
+          {!aiConfigured && <div className="empty-text" style={{ fontSize: 13, color: "var(--text-muted)" }}>请先在设置中配置 AI API Key，即可生成周报/月报精选。</div>}
+          {aiConfigured && !weeklyDigest && !monthlyDigest && !weeklyLoading && !monthlyLoading && (
+            <div className="empty-text" style={{ fontSize: 13, color: "var(--text-muted)" }}>
+              点击上方按钮，AI 基于历史日报文章生成周期精选摘要。
+            </div>
+          )}
+          {weeklyLoading && <div className="empty-text" style={{ padding: 16 }}>⏳ AI 正在分析过去一周的文章，生成周报精选…</div>}
+          {monthlyLoading && <div className="empty-text" style={{ padding: 16 }}>⏳ AI 正在分析过去一个月的文章，生成月报精选…</div>}
+          {weeklyDigest && (
+            <div style={{ marginBottom: monthlyDigest ? 20 : 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <strong style={{ fontSize: 14, color: "var(--accent)" }}>
+                  <Icon name="calendar" size={14} style={{ verticalAlign: -2, marginRight: 4 }} />
+                  {weeklyDigest.periodLabel} 周报 · {weeklyDigest.articlesCount} 篇精选
+                </strong>
+              </div>
+              <div className="digest-content" style={{ fontSize: 14, lineHeight: 1.85, wordBreak: "break-word" }}>
+                {renderDigest(weeklyDigest.digest)}
+              </div>
+            </div>
+          )}
+          {monthlyDigest && (
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                <strong style={{ fontSize: 14, color: "var(--accent)" }}>
+                  <Icon name="calendar" size={14} style={{ verticalAlign: -2, marginRight: 4 }} />
+                  {monthlyDigest.periodLabel} 月报 · {monthlyDigest.articlesCount} 篇精选
+                </strong>
+              </div>
+              <div className="digest-content" style={{ fontSize: 14, lineHeight: 1.85, wordBreak: "break-word" }}>
+                {renderDigest(monthlyDigest.digest)}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── 周报/月报历史弹窗 ── */}
+      {showPeriodicHistory && (
+        <div className="card" style={{ marginBottom: 16, borderColor: "var(--accent)", borderWidth: 2 }}>
+          <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <h2><Icon name="clock" size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> 历史周报/月报</h2>
+            <Button variant="ghost" size="sm" icon="x" onClick={() => { setShowPeriodicHistory(false); setViewingPeriodic(null); }}>关闭</Button>
+          </div>
+          <div className="card-body">
+            {periodicList.length === 0 && <div className="empty-text" style={{ fontSize: 13 }}>暂无历史记录</div>}
+            {periodicList.length > 0 && (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: viewingPeriodic ? 16 : 0 }}>
+                {periodicList.map((p) => (
+                  <Button key={p.id} variant={viewingPeriodic?.id === p.id ? "primary" : "ghost"} size="sm"
+                    onClick={() => viewPeriodicDigest(p.id)}>
+                    <Icon name={p.digestType === "weekly" ? "calendar" : "clock"} size={12} style={{ verticalAlign: -1, marginRight: 2 }} />
+                    {p.periodLabel}
+                    {p.sentiment && <span className="badge" style={{ marginLeft: 4, fontSize: 10, background: p.sentiment.includes("乐观") ? "var(--profit-soft)" : p.sentiment.includes("悲观") ? "var(--loss-soft)" : "var(--accent-soft)", color: p.sentiment.includes("乐观") ? "var(--profit)" : p.sentiment.includes("悲观") ? "var(--loss)" : "var(--accent)" }}>{p.sentiment}</span>}
+                  </Button>
+                ))}
+              </div>
+            )}
+            {viewingPeriodic && (
+              <div style={{ marginTop: 12, padding: 12, background: "var(--bg-root)", borderRadius: 8 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 12, color: "var(--text-muted)" }}>
+                  <span>{viewingPeriodic.periodLabel} · {viewingPeriodic.digestType === "weekly" ? "周报" : "月报"} · {viewingPeriodic.articlesCount} 篇精选</span>
+                </div>
+                <div className="digest-content" style={{ fontSize: 14, lineHeight: 1.85, wordBreak: "break-word" }}>
+                  {renderDigest(viewingPeriodic.digest)}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* SOP 分组文章列表 */}
       {data.topics.map((topic, i) => {
-        const sopLabels = { "SOP1 深度洞察": { emoji: "🧠", desc: "长期逻辑 · 商业模式 · 宏观定调（Why & What）" }, "SOP2 势能扫描": { emoji: "📡", desc: "资金流向 · 评级调整 · 突发热点（When & Where）" }, "SOP3 区域/垂类": { emoji: "🔬", desc: "查漏补缺 · 特定机会 · 技术前沿（How & Next）" } };
-        const meta = sopLabels[topic.name] || { emoji: "📌", desc: "" };
+        const sopLabels = { "SOP1 深度洞察": { icon: "brain", desc: "长期逻辑 · 商业模式 · 宏观定调（Why & What）" }, "SOP2 势能扫描": { icon: "rss", desc: "资金流向 · 评级调整 · 突发热点（When & Where）" }, "SOP3 区域/垂类": { icon: "microscope", desc: "查漏补缺 · 特定机会 · 技术前沿（How & Next）" } };
+        const meta = sopLabels[topic.name] || { icon: "paperclip", desc: "" };
         return (
           <div className="card" key={i}>
             <div className="card-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-              <div><h2>{meta.emoji} {topic.name}</h2><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{meta.desc}</div></div>
+              <div><h2><Icon name={meta.icon} size={16} style={{ verticalAlign: -3, marginRight: 4 }} /> {topic.name}</h2><div style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>{meta.desc}</div></div>
               <span className="badge">{topic.count} 篇</span>
             </div>
             <div className="card-body">
@@ -415,8 +578,8 @@ export default function DailyNews({ showToast }) {
         <div ref={modalRef} onClick={onModalBackdrop} style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "var(--bg-card)", borderRadius: 12, maxWidth: 700, width: "100%", maxHeight: "80vh", overflow: "auto", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ position: "sticky", top: 0, background: "var(--bg-card)", padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", zIndex: 1 }}>
-              <h3 style={{ margin: 0 }}>📋 全部文章（{allArts.length} 篇）</h3>
-              <button className="btn btn-ghost" onClick={() => setShowAllArticles(false)} style={{ fontSize: 16, padding: "4px 8px" }}>✕</button>
+              <h3 style={{ margin: 0 }}><Icon name="clipboard" size={16} style={{ verticalAlign: -2, marginRight: 4 }} /> 全部文章（{allArts.length} 篇）</h3>
+              <Button variant="ghost" size="sm" icon="x" onClick={() => setShowAllArticles(false)} />
             </div>
             <div style={{ padding: "8px 20px 20px" }}>
               {allArts.map((a, idx) => (
@@ -439,8 +602,8 @@ export default function DailyNews({ showToast }) {
         <div ref={modalRef} onClick={(e) => { if (e.target === e.currentTarget) setShowOpmlEditor(false); }} style={{ position: "fixed", inset: 0, zIndex: 1001, background: "rgba(0,0,0,0.35)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "var(--bg-card)", borderRadius: 12, maxWidth: 750, width: "100%", maxHeight: "85vh", display: "flex", flexDirection: "column", boxShadow: "0 8px 32px rgba(0,0,0,0.18)" }}>
             <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-              <h3 style={{ margin: 0 }}>📡 RSS 源管理（OPML）</h3>
-              <button className="btn btn-ghost" onClick={() => setShowOpmlEditor(false)} style={{ fontSize: 16, padding: "4px 8px" }}>✕</button>
+              <h3 style={{ margin: 0 }}><Icon name="rss" size={16} style={{ verticalAlign: -2, marginRight: 4 }} /> RSS 源管理（OPML）</h3>
+              <Button variant="ghost" size="sm" icon="x" onClick={() => setShowOpmlEditor(false)} />
             </div>
             <div style={{ padding: 12, fontSize: 12, color: "var(--text-muted)", borderBottom: "1px solid var(--border-subtle)", flexShrink: 0 }}>
               编辑 OPML 格式的 RSS 源列表。每行一个 &lt;outline&gt; 标签，xmlUrl 为 RSS 地址。也可粘贴其他阅读器的 OPML 导出内容。
@@ -468,13 +631,13 @@ export default function DailyNews({ showToast }) {
                 保存后自动刷新文章 · 保存在本地用户目录
               </span>
               <div style={{ display: "flex", gap: 8 }}>
-                <button className="btn btn-ghost" onClick={restoreDefaultOpml} disabled={opmlLoading} style={{ fontSize: 12, color: "var(--warning)" }}>
-                  🔄 恢复默认
-                </button>
-                <button className="btn btn-ghost" onClick={() => setShowOpmlEditor(false)}>取消</button>
-                <button className="btn btn-primary" onClick={saveOpml} disabled={opmlLoading}>
-                  {opmlLoading ? "保存中…" : "💾 保存并刷新"}
-                </button>
+                <Button variant="ghost" size="sm" icon="undo" onClick={restoreDefaultOpml} disabled={opmlLoading} style={{ color: "var(--warning)" }}>
+                  恢复默认 OPML
+                </Button>
+                <Button variant="ghost" onClick={() => setShowOpmlEditor(false)}>取消</Button>
+                <Button variant="primary" icon="save" onClick={saveOpml} disabled={opmlLoading} loading={opmlLoading}>
+                  保存 OPML
+                </Button>
               </div>
             </div>
           </div>

@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../utils/api.js";
+import Icon from "./Icon.jsx";
+import Button from "./Button.jsx";
 
 // ── 默认值 ──
 const DEFAULTS = {
@@ -53,6 +55,7 @@ export default function Settings({ showToast }) {
   const [settings, setSettings] = useState({ ...DEFAULTS });      // 当前编辑中的设置
   const [savedSettings, setSavedSettings] = useState(null);        // 上次成功保存的快照
   const [dbStatus, setDbStatus] = useState("检测中…");
+  const [dbError, setDbError] = useState(null);                    // 数据库连接错误描述
   const [currentDbType, setCurrentDbType] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,7 +73,8 @@ export default function Settings({ showToast }) {
       setSettings(merged);
       setSavedSettings({ ...merged });
       setCurrentDbType(healthInfo?.dbType || "sqlite");
-      setDbStatus(healthInfo?.statusText || "❌ 无法连接");
+      setDbStatus(healthInfo?.statusText || "无法连接");
+      setDbError(healthInfo?.dbError || null);
       setLoading(false);
     })();
   }, []);
@@ -91,10 +95,11 @@ export default function Settings({ showToast }) {
       return {
         dbType: d.dbType || "sqlite",
         preferredDbType: d.preferredDbType || null,
-        statusText: d.database === "ready" ? "✅ 已连接" : "⚠️ 未就绪",
+        dbError: d.dbError || null,
+        statusText: d.database === "ready" ? "已连接" : "未就绪",
       };
     } catch {
-      return { dbType: null, preferredDbType: null, statusText: "❌ 无法连接" };
+      return { dbType: null, preferredDbType: null, dbError: null, statusText: "无法连接" };
     }
   }
 
@@ -164,23 +169,21 @@ export default function Settings({ showToast }) {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 className="topbar-title">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: -4, marginRight: 6 }}>
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
-            </svg>
+            <Icon name="settings" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
             设置
           </h1>
           <span className="badge">软件配置</span>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {dbTypeChanged && <span style={{ fontSize: 12, color: "var(--warning)" }}>⚡ 需重启生效</span>}
-          <button
-            className="btn btn-primary"
+          <Button
+            variant="primary"
             onClick={save}
             disabled={saving || !hasUnsavedChanges}
+            loading={saving}
           >
-            {saving ? "保存中…" : "保存设置"}
-          </button>
+            保存设置
+          </Button>
         </div>
       </div>
 
@@ -202,7 +205,7 @@ export default function Settings({ showToast }) {
 
       {/* ── AI 接口配置 ── */}
       <div className="card">
-        <div className="card-header"><h2>🤖 AI 接口配置</h2></div>
+        <div className="card-header"><h2><Icon name="bot" size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> AI 接口配置</h2></div>
         <div className="card-body">
           <div className="form-row">
             <div className="form-field">
@@ -255,7 +258,7 @@ export default function Settings({ showToast }) {
                 value={settings.aiThinking ? "1" : "0"}
                 onChange={(e) => updateSetting("aiThinking", e.target.value === "1")}
               >
-                <option value="1">🧠 启用（DeepSeek: 思维链推理）</option>
+                <option value="1">启用（DeepSeek: 思维链推理）</option>
                 <option value="0">💨 关闭（标准模式）</option>
               </select>
               <small>DeepSeek 模型启用后输出思维链过程，其他模型自动忽略</small>
@@ -375,6 +378,11 @@ export default function Settings({ showToast }) {
               {dbTypeChanged ? "（已变更）" : ""}
             </span>
           </div>
+          {dbError && (
+            <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "var(--loss-soft)", border: "1px solid var(--loss)", fontSize: 13, color: "var(--loss)", lineHeight: 1.5 }}>
+              <Icon name="alert-triangle" size={12} style={{ verticalAlign: -1, marginRight: 2 }} /> {dbError}
+            </div>
+          )}
         </div>
       </div>
 

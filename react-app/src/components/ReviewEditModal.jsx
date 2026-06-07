@@ -4,6 +4,8 @@
  * 纯展示组件：渲染指定版块的所有编辑字段。
  * 关闭逻辑（保存/丢弃）由父组件通过 onClose 控制。
  */
+import Button from "./Button.jsx";
+
 export default function ReviewEditModal({ sectionConfig, review, onFieldChange, onClose }) {
   if (!sectionConfig) return null;
 
@@ -12,9 +14,7 @@ export default function ReviewEditModal({ sectionConfig, review, onFieldChange, 
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h2 style={{ fontSize: 16, fontWeight: 700 }}>{sectionConfig.title}</h2>
-          <button className="btn btn-ghost" onClick={() => onClose(true)}>
-            ✕ 关闭（丢弃修改）
-          </button>
+          <Button variant="ghost" icon="x" onClick={() => onClose(true)}>关闭（丢弃修改）</Button>
         </div>
         <div className="modal-body">
           {sectionConfig.fields.map((f) => (
@@ -33,9 +33,7 @@ export default function ReviewEditModal({ sectionConfig, review, onFieldChange, 
           ))}
         </div>
         <div className="modal-footer">
-          <button className="btn btn-primary" onClick={() => onClose(false)}>
-            💾 保存并关闭
-          </button>
+          <Button variant="primary" icon="save" onClick={() => onClose(false)}>保存并关闭</Button>
         </div>
       </div>
     </div>

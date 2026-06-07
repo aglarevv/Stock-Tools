@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../utils/api.js";
 import { formatMoney, defaults, presets, priceAtRate, transactionFee, toNumber, escapeHtml } from "../utils/helpers.js";
+import Button from "./Button.jsx";
+import { PresetButton } from "./Button.jsx";
 
 export default function TradePlan({ showToast }) {
   const [plan, setPlan] = useState({ ...defaults });
@@ -56,8 +58,8 @@ export default function TradePlan({ showToast }) {
           <span className="badge">盈亏比 {c.riskReward ? c.riskReward.toFixed(2) : "∞"}:1</span>
         </div>
         <div className="topbar-actions">
-          <button className="btn btn-ghost" onClick={() => { setPlan({ ...defaults }); showToast("表单已重置", "info"); }}>重置</button>
-          <button className="btn btn-primary" disabled={!dbOk || saving} onClick={save}>{saving ? "保存中…" : "保存"}</button>
+          <Button variant="ghost" onClick={() => { setPlan({ ...defaults }); showToast("表单已重置", "info"); }}>重置</Button>
+          <Button variant="primary" disabled={!dbOk || saving} loading={saving} onClick={save}>保存</Button>
         </div>
       </div>
 
@@ -100,8 +102,11 @@ export default function TradePlan({ showToast }) {
           <div className="card-body">
             <div className="preset-group">
               {Object.entries(presets).map(([k, v]) => (
-                <button key={k} className={`preset-btn${plan.profitRate === v.profitRate && plan.lossRate === v.lossRate ? " active" : ""}`}
-                  onClick={() => setPlan((p) => ({ ...p, ...v }))}>{k === "steady" ? "稳健" : k === "balanced" ? "均衡" : "进攻"}</button>
+                <PresetButton key={k}
+                  active={plan.profitRate === v.profitRate && plan.lossRate === v.lossRate}
+                  onClick={() => setPlan((p) => ({ ...p, ...v }))}>
+                  {k === "steady" ? "稳健" : k === "balanced" ? "均衡" : "进攻"}
+                </PresetButton>
               ))}
             </div>
           </div>

@@ -68,6 +68,16 @@ export const api = {
   /** 按日期查询单日日报 */
   dailyDigestByDate: (date) => request("GET", `/api/daily-digest?date=${encodeURIComponent(date)}`),
 
+  // ── 周报/月报精选 ──
+  /** AI 生成周报精选摘要 */
+  weeklyDigest: (aiConfig) => request("POST", "/api/ai/weekly-digest", { aiConfig }),
+  /** AI 生成月报精选摘要 */
+  monthlyDigest: (aiConfig) => request("POST", "/api/ai/monthly-digest", { aiConfig }),
+  /** 获取历史周报/月报列表 */
+  periodicDigests: (type) => request("GET", `/api/periodic-digests${type ? `?type=${type}` : ""}`),
+  /** 按 ID 查询单条周报/月报详情 */
+  periodicDigestById: (id) => request("GET", `/api/periodic-digest?id=${id}`),
+
   // ── RSS 源管理 ──
   /** 读取当前 OPML 配置内容 */
   getSourcesOpml: () => request("GET", "/api/sources/opml"),
