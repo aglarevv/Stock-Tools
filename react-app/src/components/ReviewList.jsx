@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, escapeHtml } from "../utils/helpers.js";
 import Icon from "./Icon.jsx";
 import Button from "./Button.jsx";
+import ConfirmDialog from "./ConfirmDialog.jsx";
 
 const PAGE_SIZE = 15;
 
@@ -13,6 +14,7 @@ export default function ReviewList({ navigate, showToast }) {
   const [symbol, setSymbol] = useState("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, symbol }
 
   useEffect(() => { load(); }, []);
 
@@ -24,12 +26,12 @@ export default function ReviewList({ navigate, showToast }) {
     } catch (e) { showToast(`加载失败：${e.message}`, "error"); }
   }
 
-  async function handleDelete(id, symbol) {
-    if (!confirm(`确认删除 "${symbol || ''}" 复盘记录？`)) return;
-    // Windows Electron: confirm() 后恢复焦点
-    document.body.focus();
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return;
+    const { id } = deleteTarget;
+    setDeleteTarget(null);
     try { await api.deleteReview(id); showToast("已删除", "success"); load(); } catch (e) { showToast(`删除失败：${e.message}`, "error"); }
-  }
+  }, [deleteTarget, api]);
 
   const totalPages = Math.max(1, Math.ceil(records.length / PAGE_SIZE));
   const p = Math.min(page, totalPages);
@@ -71,7 +73,7 @@ export default function ReviewList({ navigate, showToast }) {
                 <span style={{ color: r.pnlAmount >= 0 ? "var(--profit)" : "var(--loss)" }}>{formatMoney.format(r.pnlAmount)}</span>
               </span>
               <Button variant="delete" size="sm" style={{ flexShrink: 0 }}
-                onClick={(e) => { e.stopPropagation(); handleDelete(r.id, r.symbol); }} icon="trash"></Button>
+                onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: r.id, symbol: r.symbol }); }} icon="trash"></Button>
             </div>
           )) : <div className="empty-text">暂无记录</div>}
         </div>
@@ -84,6 +86,14 @@ export default function ReviewList({ navigate, showToast }) {
           <Button variant="ghost" disabled={p >= totalPages} onClick={() => setPage(p + 1)}>下一页 →</Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="删除确认"
+        message={`确定删除 "${deleteTarget?.symbol || ''}" 复盘记录？`}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
