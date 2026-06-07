@@ -24,8 +24,10 @@ export default function ReviewList({ navigate, showToast }) {
     } catch (e) { showToast(`加载失败：${e.message}`, "error"); }
   }
 
-  async function handleDelete(id) {
-    if (!confirm("确认删除这条复盘记录？")) return;
+  async function handleDelete(id, symbol) {
+    if (!confirm(`确认删除 "${symbol || ''}" 复盘记录？`)) return;
+    // Windows Electron: confirm() 后恢复焦点
+    document.body.focus();
     try { await api.deleteReview(id); showToast("已删除", "success"); load(); } catch (e) { showToast(`删除失败：${e.message}`, "error"); }
   }
 
@@ -69,7 +71,7 @@ export default function ReviewList({ navigate, showToast }) {
                 <span style={{ color: r.pnlAmount >= 0 ? "var(--profit)" : "var(--loss)" }}>{formatMoney.format(r.pnlAmount)}</span>
               </span>
               <Button variant="delete" size="sm" style={{ flexShrink: 0 }}
-                onClick={(e) => { e.stopPropagation(); handleDelete(r.id); }} icon="trash"></Button>
+                onClick={(e) => { e.stopPropagation(); handleDelete(r.id, r.symbol); }} icon="trash"></Button>
             </div>
           )) : <div className="empty-text">暂无记录</div>}
         </div>
