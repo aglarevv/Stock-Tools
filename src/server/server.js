@@ -7,6 +7,8 @@ const os = require("node:os");
 const crypto = require("node:crypto");
 const db = require("./db");
 const keywords = require("./keywords.js");
+const { parseOPML, fetchRSS } = require("./services/rss.js");
+const { classifyArticles, sortArticlesBySOP, detectSentiment, assessMarketSentiment, cleanDigest } = require("./services/classifier.js");
 
 // AES-256-GCM 加密配置（用于 API Key 安全存储）
 const ENC_ALGO = "aes-256-gcm";
@@ -1485,18 +1487,6 @@ async function handleApi(request, response, url) {
 // 每日时事日报 — 3-SOP 解析 + AI 摘要
 // ═════════════════════════════════════════════════════════════════════
 
-// 懒加载：仅在需要时 require，避免服务器启动时缺模块导致崩溃
-let _feedparser = null;
-let _nodeFetch = null;
-function getFeedParser() {
-  if (!_feedparser) _feedparser = require("feedparser");
-  return _feedparser;
-}
-function getNodeFetch() {
-  if (!_nodeFetch) _nodeFetch = require("node-fetch");
-  return _nodeFetch;
-}
-
 // 内存缓存（当天有效）
 let newsCache = { date: "", data: null };
 
@@ -1605,192 +1595,8 @@ async function generateDailyDigest() {
   return digest;
 }
 
-function parseOPML(filePath) {
-  const feeds = [];
-  try {
-    const xml = fs.readFileSync(filePath, "utf-8");
-    const outlineRegex = /<outline[^>]*text="([^"]*)"[^>]*xmlUrl="([^"]*)"[^>]*\/?>/gi;
-    const catRegex = /<outline[^>]*text="([^"]*)"[^>]*>/gi;
-
-    let currentCat = "综合";
-    const lines = xml.split("\n");
-    for (const line of lines) {
-      const catMatch = line.match(/<outline text="([^"]+)"[^>]*>\s*$/);
-      if (catMatch && !line.includes("xmlUrl")) {
-        currentCat = catMatch[1];
-        continue;
-      }
-      const match = outlineRegex.exec(line);
-      outlineRegex.lastIndex = 0;
-      if (match) {
-        feeds.push({ title: match[1], xmlUrl: match[2], category: currentCat });
-      }
-    }
-  } catch { /* OPML 解析失败 */ }
-  return feeds;
-}
-
-function fetchRSS(url) {
-  const fetch = getNodeFetch();
-  const FeedParser = getFeedParser();
-  return new Promise((resolve) => {
-    const items = [];
-    const parser = new FeedParser();
-    const timeout = setTimeout(() => { resolve(items); }, 8000);
-
-    try {
-      fetch(url, { timeout: 5000, headers: { "User-Agent": "Toolbox/2.0" } })
-        .then((res) => {
-          if (!res.ok) { clearTimeout(timeout); resolve(items); return; }
-          res.body.pipe(parser);
-        })
-        .catch(() => { clearTimeout(timeout); resolve(items); });
-
-      parser.on("readable", () => {
-        let item;
-        while ((item = parser.read())) {
-          items.push({
-            title: item.title || "",
-            summary: item.summary || item.description || "",
-            link: item.link || "",
-            date: item.date || item.pubDate || "",
-          });
-        }
-      });
-      parser.on("end", () => { clearTimeout(timeout); resolve(items); });
-      parser.on("error", () => { clearTimeout(timeout); resolve(items); });
-    } catch { clearTimeout(timeout); resolve(items); }
-  });
-}
-
-function classifyArticles(articles) {
-  // 直接使用 OPML 中定义的 SOP 分类层级
-  const sopOrder = ["SOP 1 深度洞察", "SOP 2 势能扫描", "辅助：区域/垂类"];
-  const sopLabel = {
-    "SOP 1 深度洞察": "SOP1 深度洞察",
-    "SOP 2 势能扫描": "SOP2 势能扫描",
-    "辅助：区域/垂类": "SOP3 区域/垂类",
-  };
-
-  const topics = {};
-  for (const art of articles) {
-    let cat = art.category || "综合";
-    // 匹配 SOP 分类
-    let matched = null;
-    for (const sop of sopOrder) {
-      if (cat.includes(sop) || cat.includes(sopLabel[sop]?.split(" ")[0])) {
-        matched = sopLabel[sop] || sop;
-        break;
-      }
-    }
-    if (!matched) matched = "综合";
-    if (!topics[matched]) topics[matched] = [];
-    topics[matched].push(art);
-  }
-
-  // 按 SOP 顺序排列
-  const ordered = [];
-  for (const label of Object.values(sopLabel)) {
-    if (topics[label]) ordered.push([label, topics[label]]);
-  }
-  if (topics["综合"]) ordered.push(["综合", topics["综合"]]);
-
-  return ordered.map(([name, items]) => ({
-    name,
-    count: items.length,
-    highlights: items.slice(0, 15).map(a => ({
-      title: a.title,
-      source: a.source,
-      link: a.link,
-      summary: a.summary || "",
-      sentiment: detectSentiment(a.title + (a.summary || "")),
-    })),
-  }));
-}
-
-/**
- * 将文章数组按 SOP 分类排序（SOP1 → SOP2 → SOP3 → 综合），组内保持原顺序。
- * 确保 AI 摘要中的 [来源N] 角标编号与前端 buildLinkMap 的索引一致。
- */
-function sortArticlesBySOP(articles) {
-  const sopOrder = ["SOP 1 深度洞察", "SOP 2 势能扫描", "辅助：区域/垂类"];
-  const sopLabel = {
-    "SOP 1 深度洞察": "SOP1 深度洞察",
-    "SOP 2 势能扫描": "SOP2 势能扫描",
-    "辅助：区域/垂类": "SOP3 区域/垂类",
-  };
-
-  // 分组
-  const groups = { sop1: [], sop2: [], sop3: [], other: [] };
-  for (const a of articles) {
-    const cat = a.category || "";
-    if (cat.includes("SOP 1") || cat.includes("深度洞察")) {
-      groups.sop1.push(a);
-    } else if (cat.includes("SOP 2") || cat.includes("势能扫描")) {
-      groups.sop2.push(a);
-    } else if (cat.includes("辅助") || cat.includes("区域/垂类")) {
-      groups.sop3.push(a);
-    } else {
-      groups.other.push(a);
-    }
-  }
-
-  // 按 SOP1 → SOP2 → SOP3 → 其他 拼接
-  return [...groups.sop1, ...groups.sop2, ...groups.sop3, ...groups.other];
-}
-
-function detectSentiment(text) {
-  const bullish = ["涨", "利好", "突破", "反弹", "增长", "上升", "扩大", "强劲", "创新高", "牛市", "回暖", "放量"];
-  const bearish = ["跌", "利空", "下跌", "暴跌", "衰退", "下滑", "萎缩", "疲软", "创新低", "熊市", "低迷", "缩量", "危机", "制裁", "摩擦"];
-  let score = 0;
-  for (const w of bullish) if (text.includes(w)) score++;
-  for (const w of bearish) if (text.includes(w)) score--;
-  return score > 0 ? "利好" : score < 0 ? "利空" : "中性";
-}
-
-function assessMarketSentiment(articles) {
-  let bullish = 0, bearish = 0;
-  for (const a of articles) {
-    const s = detectSentiment(a.title + a.summary);
-    if (s === "利好") bullish++;
-    else if (s === "利空") bearish++;
-  }
-  if (bullish > bearish * 1.5) return { label: "偏乐观 😊", ratio: `${bullish}:${bearish}`, detail: `利好 ${bullish} 条 vs 利空 ${bearish} 条，市场情绪偏暖` };
-  if (bearish > bullish * 1.5) return { label: "偏悲观 😟", ratio: `${bullish}:${bearish}`, detail: `利空 ${bearish} 条 vs 利好 ${bullish} 条，注意风险` };
-  return { label: "中性 😐", ratio: `${bullish}:${bearish}`, detail: `利好 ${bullish} 条，利空 ${bearish} 条，多空均衡` };
-}
-
-/**
- * 清洗 AI 日报摘要输出
- * - 去掉末尾的「注 / 备注 / 说明」行
- * - 去掉 --- 分隔线后的多余注释
- * - 去掉 AI 自述的格式说明（如 "以下按3-SOP结构..."）
- */
-function cleanDigest(text) {
-  if (!text) return "";
-  let cleaned = text;
-
-  // 1. 去掉末尾的 *注：...* / *备注：...* / *说明：...* 整行
-  cleaned = cleaned.replace(/\n?\*{0,2}(?:注|备注|说明)[：:][^*]*\*{0,2}\s*$/g, "");
-
-  // 2. 去掉末尾的 --- 分隔线及其之后的全部内容
-  cleaned = cleaned.replace(/\n---[\s\S]*$/g, "");
-
-  // 3. 去掉行首 "---" 孤立行
-  cleaned = cleaned.replace(/^---+$/gm, "");
-
-  // 4. 去掉 AI 自述的格式说明括号段落（如 "（全文共N处引用）"）
-  cleaned = cleaned.replace(/（[^）]*全文[^）]*）\s*/g, "");
-  cleaned = cleaned.replace(/\([^)]*全文[^)]*\)\s*/g, "");
-
-  // 5. 去掉 "以下按"、"以上是" 等格式自述行
-  cleaned = cleaned.replace(/^.*?(?:以下|以上)(?:按|是).*?[。\.]\s*$/gm, "");
-
-  // 6. 折叠多余空行
-  cleaned = cleaned.replace(/\n{3,}/g, "\n\n");
-
-  return cleaned.trim();
-}
+// classifyArticles, sortArticlesBySOP, detectSentiment, assessMarketSentiment, cleanDigest
+// 已提取到 services/classifier.js
 
 /**
  * 根据文章情感比例生成简单情绪标签（用于周报/月报）

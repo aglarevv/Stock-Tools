@@ -55,6 +55,9 @@ cp -r "$ROOT_DIR/node_modules/pdf-parse" "$SERVER_RESOURCES_DIR/node_modules/pdf
 cp "$ROOT_DIR/src/server/server.js" "$SERVER_RESOURCES_DIR/server.js"  # keep original as fallback
 cp "$ROOT_DIR/src/server/db.js" "$SERVER_RESOURCES_DIR/db.js"
 cp "$ROOT_DIR/src/server/keywords.js" "$SERVER_RESOURCES_DIR/keywords.js" 2>/dev/null || true
+mkdir -p "$SERVER_RESOURCES_DIR/services"
+cp "$ROOT_DIR/src/server/services/rss.js" "$SERVER_RESOURCES_DIR/services/rss.js" 2>/dev/null || true
+cp "$ROOT_DIR/src/server/services/classifier.js" "$SERVER_RESOURCES_DIR/services/classifier.js" 2>/dev/null || true
 cp "$ROOT_DIR/package.json" "$SERVER_RESOURCES_DIR/package.json"
 cp "$ROOT_DIR/sources.opml" "$RESOURCES_DIR/sources.opml"
 
