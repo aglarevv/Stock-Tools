@@ -65,6 +65,9 @@ function getDbDir() {
 
 function sqliteSQL(sql) {
   let result = sql
+    // 移除 MySQL 特有的 COMMENT 子句
+    .replace(/\s+COMMENT\s+'[^']*'/gi, "")
+    .replace(/\s+COMMENT\s+"[^"]*"/gi, "")
     // 移除 MySQL 特有的 ENGINE / CHARSET / COLLATE 子句（包括等号形式）
     .replace(/\s*ENGINE\s*=\s*\w+(\s+DEFAULT\s+CHARSET\s*=\s*\w+(\s+COLLATE\s*=\s*\w+)?)?/gi, "")
     // 单独的 CHARSET / COLLATE
@@ -93,7 +96,7 @@ function sqliteSQL(sql) {
     // 反引号 → 双引号
     .replace(/`([^`]*)`/g, '"$1"')
     // DATE_FORMAT(col, '%Y-%m-%d') → col
-    .replace(/DATE_FORMAT\s*\(\s*(\w+)\s*,\s*'%Y-%m-%d'\s*\)/gi, "$1")
+    .replace(/DATE_FORMAT\s*\(\s*(\w+)\s*,\s*'[^']*'\s*\)/gi, "$1")
     // KEY / INDEX 行移除
     .replace(/,?\s*(UNIQUE\s+)?KEY\s+\w+\s*\([^)]+\)/gi, "")
     // AUTO_INCREMENT 替换（注意：SQLite 的 AUTOINCREMENT 必须配合 PRIMARY KEY）

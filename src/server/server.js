@@ -295,8 +295,8 @@ async function initializeDatabase() {
   await db.execute(`
     CREATE TABLE IF NOT EXISTS periodic_digests (
       id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-      digest_type VARCHAR(16) NOT NULL COMMENT 'weekly | monthly',
-      period_label VARCHAR(64) NOT NULL COMMENT '如 "2026年第23周" 或 "2026年6月"',
+      digest_type VARCHAR(16) NOT NULL,
+      period_label VARCHAR(64) NOT NULL,
       date_from DATE NOT NULL,
       date_to DATE NOT NULL,
       digest TEXT NOT NULL,
