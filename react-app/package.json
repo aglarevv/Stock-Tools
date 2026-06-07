@@ -1,7 +1,6 @@
 {
   "name": "toolbox",
   "version": "2.1.0",
-  "_note": "2.1.0: 组件化系统重构 + RSS 去重 + 文章优先级 + 周报月报 + 代码混淆",
   "private": true,
   "type": "module",
   "main": "electron/main.cjs",
@@ -11,9 +10,9 @@
     "build:raw": "vite build",
     "preview": "vite preview",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
-    "electron:build": "vite build && node ../scripts/obfuscate.js electron && electron-builder",
-    "electron:build:mac": "vite build && node ../scripts/obfuscate.js electron && electron-builder --mac",
-    "electron:build:win": "vite build && node ../scripts/obfuscate.js electron && electron-builder --win"
+    "electron:build": "vite build && electron-builder",
+    "electron:build:mac": "vite build && electron-builder --mac",
+    "electron:build:win": "vite build && electron-builder --win"
   },
   "build": {
     "appId": "local.toolbox",
@@ -34,6 +33,38 @@
       {
         "from": "../node_modules/mysql2",
         "to": "node_modules/mysql2"
+      },
+      {
+        "from": "../node_modules/sql-escaper",
+        "to": "node_modules/sql-escaper"
+      },
+      {
+        "from": "../node_modules/denque",
+        "to": "node_modules/denque"
+      },
+      {
+        "from": "../node_modules/generate-function",
+        "to": "node_modules/generate-function"
+      },
+      {
+        "from": "../node_modules/iconv-lite",
+        "to": "node_modules/iconv-lite"
+      },
+      {
+        "from": "../node_modules/long",
+        "to": "node_modules/long"
+      },
+      {
+        "from": "../node_modules/lru.min",
+        "to": "node_modules/lru.min"
+      },
+      {
+        "from": "../node_modules/named-placeholders",
+        "to": "node_modules/named-placeholders"
+      },
+      {
+        "from": "../node_modules/aws-ssl-profiles",
+        "to": "node_modules/aws-ssl-profiles"
       },
       {
         "from": "../node_modules/sql.js",

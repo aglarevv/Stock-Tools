@@ -31,13 +31,25 @@ let backendProcess = null;
 let appIsQuitting = false;
 
 // ---------------------------------------------------------------------------
-// 渲染优化：Windows 字体清晰度
+// 渲染优化：跨平台字体清晰度
 // ---------------------------------------------------------------------------
-// DirectWrite 提供更清晰的字体渲染，解决 Windows 上字体模糊问题
 if (process.platform === "win32") {
+  // DirectWrite 提供更清晰的字体渲染（Windows 原生渲染引擎）
   app.commandLine.appendSwitch("enable-directwrite", "1");
   // 禁用 GPU 渲染的次像素定位，提升文字清晰度
   app.commandLine.appendSwitch("disable-font-subpixel-positioning");
+  // HiDPI 支持，确保缩放后字体不模糊
+  app.commandLine.appendSwitch("high-dpi-support", "1");
+  // 强制使用独立 GPU（避免集成显卡导致的字体渲染模糊）
+  app.commandLine.appendSwitch("force-gpu-rasterization");
+  // Chromium 字体渲染后端优化
+  app.commandLine.appendSwitch("disable-features", "FontRendererDefaultBackend");
+  // 启用 LCD 文本消锯齿（Windows 专用，比灰度抗锯齿更清晰）
+  app.commandLine.appendSwitch("enable-lcd-text");
+}
+// macOS Retina 优化
+if (process.platform === "darwin") {
+  app.commandLine.appendSwitch("high-dpi-support", "1");
 }
 
 // ---------------------------------------------------------------------------

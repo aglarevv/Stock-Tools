@@ -326,33 +326,17 @@ async function cleanupOldArticleLinks(retentionDays = 14) {
 async function filterNewArticles(articles) {
   const newArticles = [];
   const seenLinks = new Set();
-
-  // 批量查询：从数据库获取所有文章链接的去重状态
   for (const article of articles) {
     const link = (article.link || "").trim();
-    if (!link) {
-      // 没有链接的文章视为新文章
-      newArticles.push(article);
-      continue;
-    }
+    if (!link) { newArticles.push(article); continue; }
     const hash = crypto.createHash("sha256").update(link).digest("hex").slice(0, 16);
     if (seenLinks.has(hash)) continue;
     seenLinks.add(hash);
-
     try {
-      const [rows] = await db.query(
-        "SELECT link_hash FROM rss_article_links WHERE link_hash = ?",
-        [hash]
-      );
-      if (rows.length === 0) {
-        newArticles.push(article);
-      }
-    } catch {
-      // 查询失败时保留该文章（安全降级）
-      newArticles.push(article);
-    }
+      const [rows] = await db.query("SELECT link_hash FROM rss_article_links WHERE link_hash = ?", [hash]);
+      if (rows.length === 0) newArticles.push(article);
+    } catch { newArticles.push(article); }
   }
-
   return newArticles;
 }
 
@@ -552,19 +536,12 @@ async function handleApi(request, response, url) {
   if (request.method === "GET" && url.pathname === "/api/health") {
     const dbStatus = dbInitError ? "error" : dbInitialized ? "ready" : "initializing";
     const currentDbType = dbInitialized ? db.getDbType() : null;
-    const cfg = dbInitialized ? db.readConfig() : {};
-    const preferredDbType = cfg.dbType || "sqlite";
-    // 当实际引擎与偏好不一致时（MySQL 连接失败回退 SQLite），附带错误说明
-    let dbError = null;
-    if (dbInitialized && currentDbType === "sqlite" && preferredDbType === "mysql") {
-      dbError = "MySQL 连接失败，已自动回退到 SQLite。请检查 MySQL 配置。";
-    }
+    const config = dbInitialized ? db.readConfig() : {};
     sendJson(response, dbStatus === "error" ? 503 : 200, {
       ok: dbStatus !== "error",
       database: dbStatus,
       dbType: currentDbType,
-      preferredDbType,
-      dbError,
+      preferredDbType: config.dbType || "sqlite",
       message: dbInitError
         ? `数据库错误：${dbInitError.message}`
         : dbInitialized
@@ -891,7 +868,7 @@ async function handleApi(request, response, url) {
       const aiRequestBody = {
         model: aiModel,
         messages: apiMessages,
-        max_tokens: 8192,
+        max_tokens: 4000,
       };
 
       // DeepSeek 思考模式（原生 HTTP 格式，非 SDK 的 extra_body）
@@ -1152,7 +1129,7 @@ async function handleApi(request, response, url) {
       idx += sopGroups.sop2.length;
       const sop3Text = buildSection("SOP 3 区域/垂类 — 查漏补缺·特定机会·技术前沿（投资的 How 和 Next）", sopGroups.sop3, idx);
 
-      const systemPrompt = `你是一位专业的中国A股市场与全球宏观研究分析师。请根据以下按3-SOP体系采集的财经新闻，撰写一份中文每日市场日报摘要。
+      const systemPrompt = `你是一位专业的中国A股市场与全球宏观研究分析师。请根据以下按3-SOP体系采集的财经新闻，撰写一份约500字的中文每日市场日报摘要。
 
 ## 写作要求
 1. **结构严格按 3-SOP**：
@@ -1163,7 +1140,7 @@ async function handleApi(request, response, url) {
 2. **中国股市重点**：对可能影响A股/港股的事件详细描述，明确标注利空/利好方向及其逻辑
 3. **来源引用**：每个关键判断和核心数据必须在句末用 [来源N] 标注出处
 4. **结语展望**：一句话总结当日核心矛盾 + 对下一交易日的简短展望
-5. 语言专业，不使用 Markdown 标题符号
+5. 语言简洁专业，总字数控制在500字左右，不使用 Markdown 标题符号
 
 以下是今日采集的文章：${sop1Text}${sop2Text}${sop3Text}`;
 
@@ -1173,7 +1150,7 @@ async function handleApi(request, response, url) {
           { role: "system", content: systemPrompt },
           { role: "user", content: "请按3-SOP结构撰写今日日报摘要（字数不限、逻辑完整），重点分析对中国股市的利空/利好影响，所有关键信息标注来源编号。用**粗体**标注重要概念和判断。" },
         ],
-        max_tokens: 16384,
+        max_tokens: 4000,
       };
 
       if (enableThinking && /deepseek/i.test(aiModel)) {
@@ -1207,7 +1184,6 @@ async function handleApi(request, response, url) {
       // 持久化保存到数据库（articles 按 SOP 排序，与 AI 摘要角标编号一致）
       try {
         const today = new Date().toISOString().slice(0, 10);
-        // 计算整体情绪
         let bullish = 0, bearish = 0;
         for (const a of articles) {
           if (a.sentiment === "利好") bullish++;
@@ -1224,22 +1200,17 @@ async function handleApi(request, response, url) {
         );
 
         // 记录本次用到的文章链接，供次日去重使用
-        const todayStr = today;
         for (const article of sortedArticles) {
           const link = (article.link || "").trim();
           if (!link) continue;
           const hash = crypto.createHash("sha256").update(link).digest("hex").slice(0, 16);
           try {
             await db.execute(
-              `INSERT INTO rss_article_links (link_hash, first_seen_date, last_seen_date)
-               VALUES (?, ?, ?)
-               ON DUPLICATE KEY UPDATE last_seen_date = VALUES(last_seen_date)`,
-              [hash, todayStr, todayStr]
+              `INSERT INTO rss_article_links (link_hash, first_seen_date, last_seen_date) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE last_seen_date = VALUES(last_seen_date)`,
+              [hash, today, today]
             );
           } catch { /* 单个链接记录失败不影响主流程 */ }
         }
-
-        // 异步清理旧记录
         cleanupOldArticleLinks().catch(() => {});
       } catch (e) {
         console.error("保存日报摘要失败:", e.message);
@@ -1333,29 +1304,12 @@ async function handleApi(request, response, url) {
         dbTypeChanged = settings.dbType !== currentDbType;
         cfgUpdate.dbType = settings.dbType;
         if (settings.dbType === "mysql") {
-          const mysqlHost = settings.dbHost || config.mysql.host;
-          const mysqlPort = Number(settings.dbPort) || config.mysql.port;
-          const mysqlUser = settings.dbUser || config.mysql.user;
-          const mysqlPassword = settings.dbPassword || config.mysql.password;
-          const mysqlDatabase = settings.dbName || config.mysql.database;
-
-          // ── 测试 MySQL 连接，避免无效凭据写入后重启仍回退 SQLite ──
-          try {
-            const mysql2 = require("mysql2/promise");
-            const testConn = await mysql2.createConnection({
-              host: mysqlHost, port: mysqlPort, user: mysqlUser,
-              password: mysqlPassword, connectTimeout: 3000,
-            });
-            await testConn.query("SELECT 1");
-            await testConn.end();
-          } catch (connErr) {
-            sendError(response, 400, `MySQL 连接测试失败：${connErr.message}。请检查数据库地址、端口、用户名和密码是否正确。`);
-            return;
-          }
-
           cfgUpdate.mysql = {
-            host: mysqlHost, port: mysqlPort, user: mysqlUser,
-            password: mysqlPassword, database: mysqlDatabase,
+            host: settings.dbHost || config.mysql.host,
+            port: Number(settings.dbPort) || config.mysql.port,
+            user: settings.dbUser || config.mysql.user,
+            password: settings.dbPassword || config.mysql.password,
+            database: settings.dbName || config.mysql.database,
           };
         }
       }
@@ -1425,173 +1379,87 @@ async function handleApi(request, response, url) {
       const aiModel = (ac?.model) || config.ai.model;
       const enableThinking = ac?.thinking !== false;
 
-      if (!aiKey) {
-        sendError(response, 503, "未配置 AI_API_KEY，请在设置页中配置");
-        return;
-      }
+      if (!aiKey) { sendError(response, 503, "未配置 AI_API_KEY"); return; }
 
-      // 确定时间范围
       const isWeekly = url.pathname === "/api/ai/weekly-digest";
       const now = new Date();
       const dateTo = now.toISOString().slice(0, 10);
       const fromDate = new Date(now);
-      if (isWeekly) {
-        fromDate.setDate(fromDate.getDate() - 7);
-      } else {
-        fromDate.setMonth(fromDate.getMonth() - 1);
-      }
+      isWeekly ? fromDate.setDate(fromDate.getDate() - 7) : fromDate.setMonth(fromDate.getMonth() - 1);
       const dateFrom = fromDate.toISOString().slice(0, 10);
+      const periodLabel = isWeekly ? getWeekLabel(now) : `${now.getFullYear()}年${now.getMonth() + 1}月`;
 
-      // 生成周期标签
-      const weekStr = getWeekLabel(now);
-      const monthStr = `${now.getFullYear()}年${now.getMonth() + 1}月`;
-      const periodLabel = isWeekly ? weekStr : monthStr;
-
-      // 查询该时间范围内已有的日报摘要文章
       const [rows] = await db.query(
-        `SELECT digest_date, articles_json, sentiment, source_count
-         FROM daily_digests
-         WHERE digest_date >= ? AND digest_date <= ?
-         ORDER BY digest_date DESC`,
+        "SELECT digest_date, articles_json FROM daily_digests WHERE digest_date >= ? AND digest_date <= ? ORDER BY digest_date DESC",
         [dateFrom, dateTo]
       );
+      if (rows.length === 0) { sendError(response, 404, `该时间段内暂无日报数据`); return; }
 
-      if (rows.length === 0) {
-        sendError(response, 404, `该时间段内暂无日报数据，无法生成${isWeekly ? "周报" : "月报"}`);
-        return;
-      }
-
-      // 汇总所有文章（去重）
       const allArticleMap = new Map();
       for (const row of rows) {
         let articles = [];
         try { articles = JSON.parse(row.articles_json || "[]"); } catch { continue; }
-        for (const a of articles) {
-          const key = a.link || a.title;
-          if (key && !allArticleMap.has(key)) {
-            allArticleMap.set(key, a);
-          }
-        }
+        for (const a of articles) { const key = a.link || a.title; if (key && !allArticleMap.has(key)) allArticleMap.set(key, a); }
       }
       const aggregatedArticles = Array.from(allArticleMap.values());
-
-      // 按优先级排序
       for (const a of aggregatedArticles) a._priority = computePriority(a);
       aggregatedArticles.sort((a, b) => b._priority - a._priority);
       for (const a of aggregatedArticles) delete a._priority;
-
-      // 只取 Top 60（周报/月报可容纳更多）
       const topArticles = aggregatedArticles.slice(0, 60);
 
-      // 构建 AI prompt
-      const articlesText = topArticles.map((a, i) => {
-        const n = i + 1;
-        return `${n}. [${a.source || "未知来源"}] ${a.title}\n   链接：${a.link || "无"}\n   摘要：${(a.summary || "").slice(0, 200)}\n   情感：${a.sentiment || "未标注"}`;
-      }).join("\n\n");
+      const articlesText = topArticles.map((a, i) =>
+        `${i + 1}. [${a.source || "未知来源"}] ${a.title}\n   链接：${a.link || "无"}\n   摘要：${(a.summary || "").slice(0, 200)}\n   情感：${a.sentiment || "未标注"}`
+      ).join("\n\n");
 
       const periodType = isWeekly ? "周报" : "月报";
-      const systemPrompt = `你是一位专业的中国A股市场分析师。请根据过去${isWeekly ? "一周（7天）" : "一个月（30天）"}的财经新闻汇总，撰写一份${periodType}精选摘要。
-
-## 写作要求
-1. **结构建议**：
-   - 本期核心矛盾（一句话总结）
-   - 重大事件回顾（按时间顺序或重要性排列）
-   - 板块/热点脉络梳理
-   - 对下一${isWeekly ? "周" : "月"}的展望
-
-2. **关键信息**：每个核心判断在句末标注 [来源N]
-3. **情感方向**：明确标注利好/利空影响
-4. **精选原则**：聚焦最重要的事件和趋势变化，而非罗列所有新闻
-
-以下是过去${isWeekly ? "一周" : "一月"}的新闻汇总（共 ${topArticles.length} 篇精选）：
-
-${articlesText}`;
+      const systemPrompt = `你是一位专业的中国A股市场分析师。请根据过去${isWeekly ? "一周（7天）" : "一个月（30天）"}的财经新闻汇总，撰写一份${periodType}精选摘要。\n## 写作要求\n1. 本期核心矛盾（一句话总结）\n2. 重大事件回顾（按时间顺序或重要性排列）\n3. 板块/热点脉络梳理\n4. 对下一${isWeekly ? "周" : "月"}的展望\n5. 每个核心判断在句末标注 [来源N]\n6. 明确标注利好/利空影响\n\n以下是过去${isWeekly ? "一周" : "一月"}的新闻汇总（共 ${topArticles.length} 篇精选）：\n\n${articlesText}`;
 
       const aiRequestBody = {
         model: aiModel,
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `请撰写${periodLabel}${periodType}精选摘要，重点回顾关键事件和市场脉络，用**粗体**标注重要判断。` },
+          { role: "user", content: `请撰写${periodLabel}${periodType}精选摘要，用**粗体**标注重要判断。` },
         ],
         max_tokens: 16384,
       };
-
-      if (enableThinking && /deepseek/i.test(aiModel)) {
-        aiRequestBody.thinking = { type: "enabled" };
-      } else {
-        aiRequestBody.temperature = 0.5;
-      }
+      if (enableThinking && /deepseek/i.test(aiModel)) aiRequestBody.thinking = { type: "enabled" };
+      else aiRequestBody.temperature = 0.5;
 
       const aiResponse = await fetch(aiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${aiKey}`,
-        },
+        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${aiKey}` },
         body: JSON.stringify(aiRequestBody),
       });
-
-      if (!aiResponse.ok) {
-        const errText = await aiResponse.text().catch(() => "未知错误");
-        console.error(`${periodType} AI error:`, aiResponse.status, errText.substring(0, 300));
-        sendError(response, 502, `AI 服务返回错误 (${aiResponse.status})`);
-        return;
-      }
+      if (!aiResponse.ok) { sendError(response, 502, `AI 服务返回错误 (${aiResponse.status})`); return; }
 
       const aiData = await aiResponse.json();
       let digest = aiData?.choices?.[0]?.message?.content || "";
       digest = cleanDigest(digest);
 
-      // 持久化保存
       try {
         const sentimentLabel = assessSimpleSentiment(topArticles);
         await db.execute(
-          `INSERT INTO periodic_digests (digest_type, period_label, date_from, date_to, digest, articles_count, sentiment)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO periodic_digests (digest_type, period_label, date_from, date_to, digest, articles_count, sentiment) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [isWeekly ? "weekly" : "monthly", periodLabel, dateFrom, dateTo, digest, topArticles.length, sentimentLabel]
         );
-      } catch (e) {
-        console.error(`保存${periodType}失败:`, e.message);
-      }
+      } catch (e) { console.error(`保存${periodType}失败:`, e.message); }
 
-      sendJson(response, 200, {
-        digest,
-        type: isWeekly ? "weekly" : "monthly",
-        periodLabel,
-        dateFrom,
-        dateTo,
-        articlesCount: topArticles.length,
-      });
-    } catch (error) {
-      console.error("Periodic digest error:", error);
-      sendError(response, 500, `AI 摘要生成失败：${error.message}`);
-    }
+      sendJson(response, 200, { digest, type: isWeekly ? "weekly" : "monthly", periodLabel, dateFrom, dateTo, articlesCount: topArticles.length });
+    } catch (error) { console.error("Periodic digest error:", error); sendError(response, 500, `AI 摘要生成失败：${error.message}`); }
     return;
   }
 
   // 查询历史周报/月报列表
   if (request.method === "GET" && url.pathname === "/api/periodic-digests") {
     try {
-      const type = url.searchParams.get("type") || ""; // 'weekly' | 'monthly' | 空=全部
-      let where = "";
-      const params = [];
-      if (type === "weekly" || type === "monthly") {
-        where = "WHERE digest_type = ?";
-        params.push(type);
-      }
+      const type = url.searchParams.get("type") || "";
+      let where = ""; const params = [];
+      if (type === "weekly" || type === "monthly") { where = "WHERE digest_type = ?"; params.push(type); }
       const [rows] = await db.query(
-        `SELECT id, digest_type AS digestType, period_label AS periodLabel,
-                date_from AS dateFrom, date_to AS dateTo,
-                articles_count AS articlesCount, sentiment,
-                DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt
-         FROM periodic_digests ${where}
-         ORDER BY created_at DESC LIMIT 20`,
+        `SELECT id, digest_type AS digestType, period_label AS periodLabel, date_from AS dateFrom, date_to AS dateTo, articles_count AS articlesCount, sentiment, DATE_FORMAT(created_at, '%Y-%m-%d %H:%i') AS createdAt FROM periodic_digests ${where} ORDER BY created_at DESC LIMIT 20`,
         params
       );
       sendJson(response, 200, { digests: rows });
-    } catch (error) {
-      sendError(response, 500, `查询失败：${error.message}`);
-    }
+    } catch (error) { sendError(response, 500, `查询失败：${error.message}`); }
     return;
   }
 
@@ -1599,26 +1467,14 @@ ${articlesText}`;
   if (request.method === "GET" && url.pathname === "/api/periodic-digest") {
     try {
       const id = Number(url.searchParams.get("id"));
-      if (!Number.isFinite(id) || id <= 0) {
-        sendError(response, 400, "需要有效的 id 参数");
-        return;
-      }
+      if (!Number.isFinite(id) || id <= 0) { sendError(response, 400, "需要有效的 id 参数"); return; }
       const [rows] = await db.query(
-        `SELECT id, digest_type AS digestType, period_label AS periodLabel,
-                date_from AS dateFrom, date_to AS dateTo, digest,
-                articles_count AS articlesCount, sentiment,
-                created_at AS createdAt
-         FROM periodic_digests WHERE id = ?`,
+        `SELECT id, digest_type AS digestType, period_label AS periodLabel, date_from AS dateFrom, date_to AS dateTo, digest, articles_count AS articlesCount, sentiment, created_at AS createdAt FROM periodic_digests WHERE id = ?`,
         [id]
       );
-      if (rows.length === 0) {
-        sendError(response, 404, "记录不存在");
-        return;
-      }
+      if (rows.length === 0) { sendError(response, 404, "记录不存在"); return; }
       sendJson(response, 200, rows[0]);
-    } catch (error) {
-      sendError(response, 500, `查询失败：${error.message}`);
-    }
+    } catch (error) { sendError(response, 500, `查询失败：${error.message}`); }
     return;
   }
 
@@ -1671,6 +1527,9 @@ function resolveDefaultOpmlPath() {
   return candidates.find(p => fs.existsSync(p)) || candidates[1];
 }
 
+/** 单次日报最多使用的文章数（超过此数量按优先级裁减） */
+const MAX_ARTICLES_PER_DIGEST = 40;
+
 async function generateDailyDigest() {
   const today = new Date().toISOString().slice(0, 10);
   if (newsCache.date === today && newsCache.data) return newsCache.data;
@@ -1715,10 +1574,9 @@ async function generateDailyDigest() {
   }
   dedupedArticles.sort((a, b) => b._priority - a._priority);
   const digestArticles = dedupedArticles.slice(0, MAX_ARTICLES_PER_DIGEST);
-  // 清理辅助字段
   for (const a of dedupedArticles) delete a._priority;
 
-  // SOP 2: 分类 + 情感标注（基于优先级筛选后的文章，用于日报预览和 AI 摘要）
+  // SOP 2: 分类 + 情感标注（基于优先级筛选后的文章）
   const topics = classifyArticles(digestArticles);
 
   // ── 全部文章（去重后完整列表，不限量），用于"全部文章"弹窗 ──
@@ -1950,7 +1808,6 @@ function assessSimpleSentiment(articles) {
 
 /**
  * 获取周标签，如 "2026年第23周"
- * 使用 ISO 周数
  */
 function getWeekLabel(date) {
   const d = new Date(date);
@@ -1961,46 +1818,20 @@ function getWeekLabel(date) {
   return `${d.getFullYear()}年第${weekNum}周`;
 }
 
-// ═════════════════════════════════════════════════════════════════════
-// 文章优先级评分 — 用于 RSS 文章排序，确保重要新闻优先进入日报
-// ═════════════════════════════════════════════════════════════════════
-
-/** 单次日报最多使用的文章数（超过此数量按优先级裁减） */
-const MAX_ARTICLES_PER_DIGEST = 40;
-
 /**
  * 计算单篇文章的优先级分数（综合时间 + 关键词 + 情感）
- * 分数越高 → 越应该优先进入日报
  */
 function computePriority(article) {
   const content = (article.title || "") + " " + (article.summary || "");
   let score = 0;
-
-  // 1. 时间分数（0~100）：越新的文章分数越高
-  //    24 小时内满分，之后每小时衰减 2 分
   const articleTime = article.date ? new Date(article.date).getTime() : 0;
   const ageHours = articleTime ? (Date.now() - articleTime) / (1000 * 60 * 60) : 48;
-  const timeScore = Math.max(0, 100 - ageHours * 2);
-  score += timeScore;
-
-  // 2. 关键词命中分数
-  for (const word of keywords.heavy) {
-    if (content.includes(word)) score += 5;
-  }
-  for (const word of keywords.important) {
-    if (content.includes(word)) score += 3;
-  }
-  for (const word of keywords.watch) {
-    if (content.includes(word)) score += 1;
-  }
-
-  // 3. 情感强度加分：有利空/利好情感倾向的文章通常更有价值
+  score += Math.max(0, 100 - ageHours * 2);
+  for (const word of keywords.heavy) { if (content.includes(word)) score += 5; }
+  for (const word of keywords.important) { if (content.includes(word)) score += 3; }
+  for (const word of keywords.watch) { if (content.includes(word)) score += 1; }
   const sentiment = detectSentiment(content);
   if (sentiment !== "中性") score += 2;
-
-  // 4. 来源多样性保底：同一来源的文章累计扣分，避免日报被单一源刷屏
-  //    此步骤在排序后由后续逻辑处理，这里不做额外操作
-
   return Math.round(score);
 }
 

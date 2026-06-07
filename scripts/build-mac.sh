@@ -44,12 +44,17 @@ npx esbuild "$ROOT_DIR/src/server/server.js" \
 
 # Copy only native/WASM modules that can't be bundled
 mkdir -p "$SERVER_RESOURCES_DIR/node_modules"
-cp -r "$ROOT_DIR/node_modules/mysql2" "$SERVER_RESOURCES_DIR/node_modules/mysql2" 2>/dev/null || true
+# mysql2 及其所有纯 JS 依赖（运行时 require）
+for pkg in mysql2 sql-escaper denque generate-function iconv-lite long lru.min named-placeholders aws-ssl-profiles; do
+  cp -r "$ROOT_DIR/node_modules/$pkg" "$SERVER_RESOURCES_DIR/node_modules/$pkg" 2>/dev/null || true
+done
+# WASM / 原生模块
 cp -r "$ROOT_DIR/node_modules/sql.js" "$SERVER_RESOURCES_DIR/node_modules/sql.js" 2>/dev/null || true
 cp -r "$ROOT_DIR/node_modules/mammoth" "$SERVER_RESOURCES_DIR/node_modules/mammoth" 2>/dev/null || true
 cp -r "$ROOT_DIR/node_modules/pdf-parse" "$SERVER_RESOURCES_DIR/node_modules/pdf-parse" 2>/dev/null || true
 cp "$ROOT_DIR/src/server/server.js" "$SERVER_RESOURCES_DIR/server.js"  # keep original as fallback
 cp "$ROOT_DIR/src/server/db.js" "$SERVER_RESOURCES_DIR/db.js"
+cp "$ROOT_DIR/src/server/keywords.js" "$SERVER_RESOURCES_DIR/keywords.js" 2>/dev/null || true
 cp "$ROOT_DIR/package.json" "$SERVER_RESOURCES_DIR/package.json"
 cp "$ROOT_DIR/sources.opml" "$RESOURCES_DIR/sources.opml"
 
