@@ -1,16 +1,25 @@
 /**
  * React 应用入口
  *
- * - 内嵌 Inter + JetBrains Mono 字体（离线可用）
+ * - 内嵌 PingFang SC 中文字体（自托管 WOFF2）
+ * - 回退 Inter + JetBrains Mono 西文字体（@fontsource 离线包）
  * - WKWebView 输入补丁：劫持 value setter 确保粘贴触发 onChange
  * - React.StrictMode 开发环境下双次渲染检测副作用
+ *
+ * ── 字体安装说明 ──
+ * 1. 运行 `node scripts/setup-pingfang.js` 自动生成 PingFang WOFF2 文件
+ * 2. 或将 PingFang OTF/TTF 放入 react-app/public/fonts/ 目录后手动转换
+ * 3. 若字体文件不存在，自动回退到 @fontsource Inter + 系统 PingFang
  */
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import { api } from "./utils/api.js";
 
-// 内嵌字体（Inter ≈ SF Pro 风格，JetBrains Mono 等宽字体）
+// 自托管 PingFang SC（优先），若 WOFF2 文件不存在则 fallthrough 到系统字体
+import "./styles/fonts.css";
+
+// 回退西文字体（Inter + JetBrains Mono @fontsource 离线包）
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";

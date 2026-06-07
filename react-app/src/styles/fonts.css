@@ -1,0 +1,53 @@
+/**
+ * fonts.css — PingFang 字体内嵌配置
+ *
+ * 优先使用系统安装的 PingFang SC（macOS 自带），
+ * 同时支持自托管 WOFF2 文件离线使用。
+ *
+ * ── 自托管 WOFF2 安装步骤 ──
+ * 1. 获取 PingFang OTF 源文件:
+ *    git clone https://github.com/jimmyctk/PingFang-OTF-Fonts.git
+ * 2. 运行转换脚本:
+ *    node scripts/setup-pingfang.js ./PingFang-OTF-Fonts
+ * 3. 脚本在 react-app/public/fonts/ 生成 .woff2 文件
+ * 4. 构建时 Vite 自动复制到 dist/fonts/
+ *
+ * 若 WOFF2 不存在，自动降级到 local() 系统字体。
+ * 自托管: 取消注释下方 url() 行即可启用。
+ */
+
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local("PingFang SC"), local("PingFangSC-Regular");
+  /* 自托管: , url("/fonts/pingfang-regular.woff2") format("woff2") */
+}
+
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: local("PingFang SC"), local("PingFangSC-Medium");
+  /* 自托管: , url("/fonts/pingfang-medium.woff2") format("woff2") */
+}
+
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local("PingFang SC"), local("PingFangSC-Semibold");
+  /* 自托管: , url("/fonts/pingfang-semibold.woff2") format("woff2") */
+}
+
+@font-face {
+  font-family: "PingFang SC";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local("PingFang SC"), local("PingFangSC-Semibold");
+  /* 自托管: , url("/fonts/pingfang-semibold.woff2") format("woff2") */
+}

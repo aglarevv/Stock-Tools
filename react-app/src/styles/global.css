@@ -24,11 +24,14 @@
   --radius-xl: 16px;
   --shadow-card: 0 1px 3px rgba(0,0,0,0.06), 0 0 0 1px var(--border-subtle);
   /* ── 字体家族 ──
-   * Windows 上 Segoe UI + Microsoft YaHei 渲染更清晰；
-   * macOS 上 San Francisco + PingFang SC 更美观。
+   * 中文字体：PingFang SC（自托管 WOFF2 + 系统回退）
+   * 西文字体：Inter（@fontsource 离线包）
+   * 等宽字体：JetBrains Mono（@fontsource 离线包）
+   * Windows：Segoe UI + Microsoft YaHei 渲染更清晰
+   * 完整回退链确保在任何平台都有可用字体
    */
-  --font-sans: "Inter", -apple-system, "PingFang SC", "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
-  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", "Cascadia Code", monospace;
+  --font-sans: "PingFang SC", "Inter", -apple-system, "Microsoft YaHei", "Segoe UI", "Helvetica Neue", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Menlo", "Consolas", "Cascadia Code", "PingFang SC", monospace;
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --titlebar-h: 36px;
   /* ── 字体渲染 ── */
