@@ -53,6 +53,7 @@ function serialize(settings) {
 }
 
 export default function Settings({ showToast }) {
+  const api = useApi();
   // ── 核心状态 ──
   const [settings, setSettings] = useState({ ...DEFAULTS });      // 当前编辑中的设置
   const [savedSettings, setSavedSettings] = useState(null);        // 上次成功保存的快照
@@ -79,7 +80,7 @@ export default function Settings({ showToast }) {
       setDbError(healthInfo?.dbError || null);
       setLoading(false);
     })();
-  }, []);
+  }, [api]);
 
   async function loadSettings() {
     try {
