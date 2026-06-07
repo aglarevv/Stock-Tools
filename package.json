@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node src/server/server.js",
     "build:mac": "./scripts/build-mac.sh",
-    "build:server": "esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --external:mammoth --external:pdf-parse --outfile=src/server/server.bundle.js && node scripts/obfuscate.js src/server/server.bundle.js src/server/db.js src/server/keywords.js",
+    "build:server": "esbuild src/server/server.js --bundle --platform=node --external:mysql2 --external:sql.js --external:mammoth --external:pdf-parse --outfile=src/server/server.bundle.js && node scripts/obfuscate.js src/server/server.bundle.js",
     "obfuscate": "node scripts/obfuscate.js"
   },
   "dependencies": {
