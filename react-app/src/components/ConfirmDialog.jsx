@@ -15,14 +15,17 @@ export default function ConfirmDialog({ open, title = "确认操作", message, o
 
   return (
     <div className="modal-overlay" onClick={onCancel}>
-      <div className="modal-content" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-confirm" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3><Icon name="alert-triangle" size={18} style={{ verticalAlign: -3, marginRight: 6 }} />{title}</h3>
+          <h3>
+            <Icon name="alert-triangle" size={18} className="modal-confirm-icon" />
+            {title}
+          </h3>
         </div>
         <div className="modal-body">
-          <p style={{ margin: 0, lineHeight: 1.6 }}>{message}</p>
+          <p className="modal-confirm-msg">{message}</p>
         </div>
-        <div className="modal-footer" style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+        <div className="modal-footer">
           <Button variant="ghost" onClick={onCancel}>取消</Button>
           <Button variant="delete" onClick={onConfirm}>确认删除</Button>
         </div>

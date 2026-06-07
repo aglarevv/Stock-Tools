@@ -249,6 +249,22 @@ textarea.filled { border-color: var(--accent) !important; background: var(--acce
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
+/* Confirm dialog — 与 Toast 通知风格统一 */
+.modal-confirm { max-width: 400px; }
+.modal-confirm .modal-header { padding: 16px 20px; }
+.modal-confirm .modal-header h3 {
+  font-size: 14px; font-weight: 600; color: var(--text-primary);
+  display: flex; align-items: center; gap: 8px;
+}
+.modal-confirm-icon {
+  flex-shrink: 0; color: var(--warning);
+}
+.modal-confirm .modal-body { padding: 16px 20px; }
+.modal-confirm-msg {
+  margin: 0; font-size: 13px; line-height: 1.6; color: var(--text-secondary);
+}
+.modal-confirm .modal-footer { padding: 12px 20px; }
+
 /* Review summary */
 .summary-item { display: flex; flex-direction: column; gap: 2px; }
 .summary-item label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
