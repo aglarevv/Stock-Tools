@@ -51,7 +51,7 @@ jobs:
       # ── 前端构建检查 ──
       - name: Build React frontend
         working-directory: react-app
-        run: npm run build
+        run: npm run build:raw
 
       # ── 后端 bundle 检查（仅检查语法/编译，不运行） ──
       - name: Check server bundle
