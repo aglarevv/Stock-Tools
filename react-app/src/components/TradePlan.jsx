@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, defaults, presets, priceAtRate, transactionFee, toNumber, escapeHtml } from "../utils/helpers.js";
 import Button from "./Button.jsx";
 import { PresetButton } from "./Button.jsx";
 
 export default function TradePlan({ showToast }) {
+  const api = useApi();
   const [plan, setPlan] = useState({ ...defaults });
   const [saving, setSaving] = useState(false);
   const [dbOk, setDbOk] = useState(false);

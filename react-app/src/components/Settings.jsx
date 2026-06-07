@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "../hooks/useApi.jsx";
 import Icon from "./Icon.jsx";
 import Button from "./Button.jsx";
+import AiConfigSection from "./AiConfigSection.jsx";
+import DatabaseConfigSection from "./DatabaseConfigSection.jsx";
 
 // ── 默认值 ──
 const DEFAULTS = {
@@ -203,188 +205,17 @@ export default function Settings({ showToast }) {
         </div>
       </div>
 
-      {/* ── AI 接口配置 ── */}
-      <div className="card">
-        <div className="card-header"><h2><Icon name="bot" size={14} style={{ verticalAlign: -2, marginRight: 4 }} /> AI 接口配置</h2></div>
-        <div className="card-body">
-          <div className="form-row">
-            <div className="form-field">
-              <label>API 地址</label>
-              <input
-                value={settings.aiUrl}
-                onChange={(e) => updateSetting("aiUrl", e.target.value)}
-                placeholder="https://api.deepseek.com"
-              />
-              <small>兼容 OpenAI 接口格式（输入 base URL 或完整地址均可）</small>
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-field">
-              <label>API Key</label>
-              <input
-                type="password"
-                value={settings.aiKey}
-                onChange={(e) => updateSetting("aiKey", e.target.value)}
-                placeholder="sk-xxxxxxxx"
-              />
-              <small>密钥使用 AES-256-GCM 加密存储</small>
-            </div>
-          </div>
-          <div className="form-row cols-2">
-            <div className="form-field">
-              <label>模型名称</label>
-              <input
-                value={settings.aiModel}
-                onChange={(e) => updateSetting("aiModel", e.target.value)}
-                placeholder="deepseek-chat"
-              />
-            </div>
-            <div className="form-field">
-              <label>温度 (0-2)</label>
-              <input
-                type="number"
-                value={settings.aiTemperature}
-                onChange={(e) => updateSetting("aiTemperature", e.target.value)}
-                min="0"
-                max="2"
-                step="0.1"
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-field">
-              <label>思考模式</label>
-              <select
-                value={settings.aiThinking ? "1" : "0"}
-                onChange={(e) => updateSetting("aiThinking", e.target.value === "1")}
-              >
-                <option value="1">启用（DeepSeek: 思维链推理）</option>
-                <option value="0">💨 关闭（标准模式）</option>
-              </select>
-              <small>DeepSeek 模型启用后输出思维链过程，其他模型自动忽略</small>
-            </div>
-          </div>
-        </div>
-      </div>
+      <AiConfigSection settings={settings} onUpdate={updateSetting} />
 
-      {/* ── 数据库 ── */}
-      <div className="card">
-        <div className="card-header">
-          <h2>🗄️ 数据库</h2>
-          <span className="card-hint">切换后需重启应用</span>
-        </div>
-        <div className="card-body">
-          <div className="form-row">
-            <div className="form-field">
-              <label>数据库引擎</label>
-              <div style={{ display: "flex", gap: 24, paddingTop: 6, flexWrap: "wrap" }}>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 500, lineHeight: "20px", flexShrink: 0 }}>
-                  <input
-                    type="radio"
-                    name="dbType"
-                    value="sqlite"
-                    checked={settings.dbType === "sqlite"}
-                    onChange={() => updateSetting("dbType", "sqlite")}
-                    style={{ margin: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ whiteSpace: "nowrap" }}>🗂️ SQLite（本地文件，无需安装）</span>
-                </label>
-                <label style={{ display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer", fontWeight: 500, lineHeight: "20px", flexShrink: 0 }}>
-                  <input
-                    type="radio"
-                    name="dbType"
-                    value="mysql"
-                    checked={settings.dbType === "mysql"}
-                    onChange={() => updateSetting("dbType", "mysql")}
-                    style={{ margin: 0, flexShrink: 0 }}
-                  />
-                  <span style={{ whiteSpace: "nowrap" }}>🐬 MySQL（远程服务器）</span>
-                </label>
-              </div>
-              <small>初次启动默认使用 SQLite。切换数据库类型后需重启应用生效。</small>
-            </div>
-          </div>
-
-          {isMySQL ? (
-            <>
-              <div className="form-row cols-2">
-                <div className="form-field">
-                  <label>主机地址</label>
-                  <input
-                    value={settings.dbHost}
-                    onChange={(e) => updateSetting("dbHost", e.target.value)}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>端口</label>
-                  <input
-                    type="number"
-                    value={settings.dbPort}
-                    onChange={(e) => updateSetting("dbPort", e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="form-row cols-2">
-                <div className="form-field">
-                  <label>用户名</label>
-                  <input
-                    value={settings.dbUser}
-                    onChange={(e) => updateSetting("dbUser", e.target.value)}
-                  />
-                </div>
-                <div className="form-field">
-                  <label>密码</label>
-                  <input
-                    type="password"
-                    value={settings.dbPassword}
-                    onChange={(e) => updateSetting("dbPassword", e.target.value)}
-                    placeholder="数据库密码"
-                  />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-field">
-                  <label>数据库名</label>
-                  <input
-                    value={settings.dbName}
-                    onChange={(e) => updateSetting("dbName", e.target.value)}
-                  />
-                </div>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="settings-info-row">
-                <span>存储位置</span>
-                <span style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>~/.stock-toolbox/toolbox.db</span>
-              </div>
-              <div className="settings-info-row">
-                <span>说明</span>
-                <span>无需安装任何数据库，开箱即用</span>
-              </div>
-            </>
-          )}
-
-          <div className="settings-info-row">
-            <span>当前运行</span>
-            <span style={{ fontWeight: 600 }}>
-              {currentDbType === "mysql" ? "🐬 MySQL" : "🗂️ SQLite"} — {dbStatus}
-            </span>
-          </div>
-          <div className="settings-info-row">
-            <span>下次启动使用</span>
-            <span style={{ fontWeight: 500, color: "var(--accent)" }}>
-              {settings.dbType === "mysql" ? "🐬 MySQL" : "🗂️ SQLite"}
-              {dbTypeChanged ? "（已变更）" : ""}
-            </span>
-          </div>
-          {dbError && (
-            <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 8, background: "var(--loss-soft)", border: "1px solid var(--loss)", fontSize: 13, color: "var(--loss)", lineHeight: 1.5 }}>
-              <Icon name="alert-triangle" size={12} style={{ verticalAlign: -1, marginRight: 2 }} /> {dbError}
-            </div>
-          )}
-        </div>
-      </div>
+      <DatabaseConfigSection
+        settings={settings}
+        onUpdate={updateSetting}
+        isMySQL={isMySQL}
+        currentDbType={currentDbType}
+        dbTypeChanged={dbTypeChanged}
+        dbStatus={dbStatus}
+        dbError={dbError}
+      />
 
       {/* ── 关于 ── */}
       <div className="card">

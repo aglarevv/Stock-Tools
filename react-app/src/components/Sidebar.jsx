@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "../hooks/useApi.jsx";
 import Icon, { Logo } from "./Icon.jsx";
 
 const NAV = [
@@ -14,6 +14,7 @@ const NAV = [
 ];
 
 export default function Sidebar({ active, onNavigate }) {
+  const api = useApi();
   const [dbStatus, setDbStatus] = useState("checking");
 
   useEffect(() => {

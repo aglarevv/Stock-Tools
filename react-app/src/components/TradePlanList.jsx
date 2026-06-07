@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, escapeHtml } from "../utils/helpers.js";
 import Icon from "./Icon.jsx";
 import Button from "./Button.jsx";
@@ -7,6 +7,7 @@ import Button from "./Button.jsx";
 const PAGE_SIZE = 15;
 
 export default function TradePlanList({ navigate, showToast }) {
+  const api = useApi();
   const [records, setRecords] = useState([]);
   const [page, setPage] = useState(1);
   const [symbol, setSymbol] = useState("");

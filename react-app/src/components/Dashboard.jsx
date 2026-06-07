@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, escapeHtml } from "../utils/helpers.js";
 import Icon from "./Icon.jsx";
 import Button from "./Button.jsx";
 
 export default function Dashboard({ navigate, showToast }) {
+  const api = useApi();
   const [data, setData] = useState(null);
 
   useEffect(() => { load(); }, []);

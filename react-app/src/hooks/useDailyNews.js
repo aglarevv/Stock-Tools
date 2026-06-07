@@ -5,9 +5,10 @@
  * 使组件只负责 UI 编排。
  */
 import { useState, useEffect, useCallback } from "react";
-import { api } from "../utils/api.js";
+import { useApi } from "./useApi.jsx";
 
 export default function useDailyNews(showToast) {
+  const api = useApi();
   // ── 基础数据 ──
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
