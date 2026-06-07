@@ -44,11 +44,11 @@ npx esbuild "$ROOT_DIR/src/server/server.js" \
 
 # Copy only native/WASM modules that can't be bundled
 mkdir -p "$SERVER_RESOURCES_DIR/node_modules"
-# mysql2 及其所有纯 JS 依赖（运行时 require）
-for pkg in mysql2 sql-escaper denque generate-function iconv-lite long lru.min named-placeholders aws-ssl-profiles; do
+# mysql2 及其所有传递依赖（运行时 require，esbuild 不打包）
+for pkg in mysql2 sql-escaper denque generate-function is-property iconv-lite safer-buffer long lru.min named-placeholders aws-ssl-profiles; do
   cp -r "$ROOT_DIR/node_modules/$pkg" "$SERVER_RESOURCES_DIR/node_modules/$pkg" 2>/dev/null || true
 done
-# WASM / 原生模块
+# WASM / 原生模块（esbuild external）
 cp -r "$ROOT_DIR/node_modules/sql.js" "$SERVER_RESOURCES_DIR/node_modules/sql.js" 2>/dev/null || true
 cp -r "$ROOT_DIR/node_modules/mammoth" "$SERVER_RESOURCES_DIR/node_modules/mammoth" 2>/dev/null || true
 cp -r "$ROOT_DIR/node_modules/pdf-parse" "$SERVER_RESOURCES_DIR/node_modules/pdf-parse" 2>/dev/null || true

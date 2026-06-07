@@ -31,44 +31,28 @@
         "to": "server"
       },
       {
-        "from": "../node_modules/mysql2",
-        "to": "node_modules/mysql2"
+        "from": "../package.json",
+        "to": "package.json"
       },
       {
-        "from": "../node_modules/sql-escaper",
-        "to": "node_modules/sql-escaper"
-      },
-      {
-        "from": "../node_modules/denque",
-        "to": "node_modules/denque"
-      },
-      {
-        "from": "../node_modules/generate-function",
-        "to": "node_modules/generate-function"
-      },
-      {
-        "from": "../node_modules/iconv-lite",
-        "to": "node_modules/iconv-lite"
-      },
-      {
-        "from": "../node_modules/long",
-        "to": "node_modules/long"
-      },
-      {
-        "from": "../node_modules/lru.min",
-        "to": "node_modules/lru.min"
-      },
-      {
-        "from": "../node_modules/named-placeholders",
-        "to": "node_modules/named-placeholders"
-      },
-      {
-        "from": "../node_modules/aws-ssl-profiles",
-        "to": "node_modules/aws-ssl-profiles"
-      },
-      {
-        "from": "../node_modules/sql.js",
-        "to": "node_modules/sql.js"
+        "from": "../node_modules",
+        "to": "node_modules",
+        "filter": [
+          "mysql2/**",
+          "sql-escaper/**",
+          "denque/**",
+          "generate-function/**",
+          "is-property/**",
+          "iconv-lite/**",
+          "safer-buffer/**",
+          "long/**",
+          "lru.min/**",
+          "named-placeholders/**",
+          "aws-ssl-profiles/**",
+          "sql.js/**",
+          "mammoth/**",
+          "pdf-parse/**"
+        ]
       },
       {
         "from": "../sources.opml",

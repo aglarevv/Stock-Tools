@@ -185,7 +185,11 @@ async function initMySQL(config) {
 
 async function initSQLite(config) {
   const initSqlJs = require("sql.js");
-  const SQL = await initSqlJs();
+  // 明确指定 WASM 文件路径，避免打包后路径解析失败
+  const sqlJsPath = require.resolve("sql.js").replace(/[^/\\]+$/, "");
+  const SQL = await initSqlJs({
+    locateFile: (file) => path.join(sqlJsPath, "dist", file),
+  });
 
   dbDir = getConfigDir();
   if (!fs.existsSync(dbDir)) {

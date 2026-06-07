@@ -391,7 +391,7 @@ export default function Settings({ showToast }) {
         <div className="card-header"><h2>ℹ️ 关于</h2></div>
         <div className="card-body">
           <div className="settings-info-row"><span>应用名称</span><span>工具箱 · Toolbox</span></div>
-          <div className="settings-info-row"><span>版本</span><span>2.0.2</span></div>
+          <div className="settings-info-row"><span>版本</span><span>{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "2.1.0"}</span></div>
         </div>
       </div>
     </div>
