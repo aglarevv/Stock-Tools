@@ -1,6 +1,6 @@
 {
   "name": "stock-toolbox",
-  "version": "2.1.1",
+  "version": "2.3.0",
   "private": true,
   "description": "macOS stock toolbox with local MySQL persistence.",
   "scripts": {
@@ -15,7 +15,8 @@
     "mysql2": "^3.14.0",
     "node-fetch": "^2.7.0",
     "pdf-parse": "^2.4.5",
-    "sql.js": "^1.10.0"
+    "sql.js": "^1.10.0",
+    "stock-sdk": "^1.10.1"
   },
   "devDependencies": {
     "esbuild": "^0.28.0",

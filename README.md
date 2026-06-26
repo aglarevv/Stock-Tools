@@ -1,4 +1,4 @@
-# 🧰 股票工具箱 · StockToolbox `v2.1.1`
+# 🧰 股票工具箱 · StockToolbox `v2.3.0`
 
 > **官网地址：https://aglarevv.github.io/Stock-Tools**
 
@@ -93,7 +93,6 @@ tools/
 │       │   └── reviewConfig.js  # 复盘版块配置（从 DailyReview 提取的数据层）
 │       ├── hooks/
 │       │   ├── useToast.jsx     # Toast 通知 Context
-│       │   ├── useAiChat.js     # AI 聊天状态管理（单向数据流）
 │       │   ├── useApi.jsx       # API 客户端注入 Context（低耦合可测试）
 │       │   └── useNavigation.js # 通用导航 Context（解耦页面参数）
 │       └── components/
@@ -106,7 +105,6 @@ tools/
 │           ├── DailyReview.jsx   # 每日复盘主组件（高内聚协调器）
 │           ├── ReviewSectionCard.jsx  # 复盘版块摘要卡片（纯展示）
 │           ├── ReviewEditModal.jsx    # 复盘版块编辑弹窗（纯展示）
-│           ├── AiChatPanel.jsx        # AI 聊天面板（纯展示）
 │           ├── ReviewList.jsx   # 复盘记录列表
 │           ├── TechnicalIndicators.jsx  # K 线形态 + 量能分析
 │           ├── DailyNews.jsx    # 每日时事 3-SOP 日报 + AI 摘要
@@ -287,7 +285,7 @@ KV 键值存储：`theme`, `aiUrl`, `aiKey`（AES-256-GCM 加密）, `aiModel`, 
 ### 架构设计原则
 
 - **低耦合高内聚**：组件通过 Context（`useApi`、`useNavigation`）注入依赖，避免直接 import 耦合
-- **单一职责**：`DailyReview` 已拆分为协调器 + 纯展示组件（`ReviewSectionCard`、`ReviewEditModal`、`AiChatPanel`）+ 数据层（`reviewConfig.js`）+ 业务逻辑 Hook（`useAiChat`）
+- **单一职责**：`DailyReview` 已拆分为协调器 + 纯展示组件（`ReviewSectionCard`、`ReviewEditModal`）+ 数据层（`reviewConfig.js`）
 - **可测试性**：`useApi` 通过 Context 注入，可在测试中替换为 mock 实现
 
 ### 新增页面
@@ -364,4 +362,4 @@ MIT License
 
 ---
 
-**版本**: 2.0.0 · **最后更新**: 2026-06-07 · **官网**: https://aglarevv.github.io/Stock-Tools
+**版本**: 2.3.0 · **最后更新**: 2026-06-26 · **官网**: https://aglarevv.github.io/Stock-Tools
