@@ -7,8 +7,32 @@
 
 const { execFile } = require("child_process");
 const path = require("path");
+const fs = require("fs");
 
-const PYTHON_BIN = "/opt/homebrew/bin/python3.11";
+// ── 跨平台 Python 自动检测 ──
+function findPython() {
+  const candidates = [
+    "/opt/homebrew/bin/python3.11",  // macOS Apple Silicon (Homebrew)
+    "/opt/homebrew/bin/python3.12",
+    "/opt/homebrew/bin/python3.10",
+    "/usr/local/bin/python3",
+    "/usr/bin/python3",
+    "python3",  // 系统 PATH
+    "python",   // Windows / 回退
+  ];
+  // 先尝试绝对路径
+  for (const bin of candidates) {
+    if (path.isAbsolute(bin)) {
+      try { fs.accessSync(bin, fs.constants.X_OK); return bin; } catch {}
+    }
+  }
+  // PATH 命令：按优先级返回，让 execFile 自己解析
+  for (const bin of candidates) {
+    if (!path.isAbsolute(bin)) return bin;
+  }
+  return "python3";
+}
+const PYTHON_BIN = findPython();
 const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
 
 /**

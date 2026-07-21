@@ -91,8 +91,14 @@ echo "Obfuscating JavaScript files..."
 node "$ROOT_DIR/scripts/obfuscate.js" "$WEB_RESOURCES_DIR/assets" "$SERVER_RESOURCES_DIR"
 echo "Obfuscation complete."
 
-# ── 代码签名（ad-hoc）—— 避免 Gatekeeper "已损坏" 错误 ──
+# ── 代码签名（ad-hoc + entitlements）—— 避免 Gatekeeper 错误 ──
 echo "Signing app (ad-hoc)..."
-codesign --force --deep --sign - "$APP_DIR" 2>/dev/null || echo "⚠ 签名失败（可能缺少 Xcode Command Line Tools），应用仍可用，首次打开请右键 → 打开"
+ENTITLEMENTS="$ROOT_DIR/react-app/macos/StockToolbox.entitlements"
+if [ -f "$ENTITLEMENTS" ]; then
+  codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "$APP_DIR" 2>/dev/null || codesign --force --deep --sign - "$APP_DIR" 2>/dev/null
+else
+  codesign --force --deep --sign - "$APP_DIR" 2>/dev/null
+fi
+echo "Signing complete (ad-hoc)"
 
 echo "Built $APP_DIR"
