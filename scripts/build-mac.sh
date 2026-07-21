@@ -77,14 +77,17 @@ cp "$ROOT_DIR/sources.opml" "$RESOURCES_DIR/sources.opml"
 
 # ── 构建 Python 独立可执行文件（PyInstaller，避免用户自行安装 Python） ──
 echo "Building Python bridge (PyInstaller)..."
-(cd "$ROOT_DIR/src/server/services" && \
-  pip3 install pyinstaller -q 2>/dev/null && \
-  pyinstaller --onefile --name akshare_bridge --distpath "$SERVER_RESOURCES_DIR" \
-    akshare_bridge.py 2>&1 | tail -3) && \
-  echo "PyInstaller OK: $(ls -lh "$SERVER_RESOURCES_DIR/akshare_bridge")" || \
+BUILD_DIR="$ROOT_DIR/src/server/services"
+(
+  cd "$BUILD_DIR" || exit 1
+  python3 -m venv venv_build
+  source venv_build/bin/activate
+  pip install pyinstaller akshare --quiet
+  pyinstaller --onefile --name akshare_bridge --distpath "$SERVER_RESOURCES_DIR" akshare_bridge.py 2>&1 | tail -3
+  deactivate 2>/dev/null
+  rm -rf venv_build __pycache__ akshare_bridge.spec build 2>/dev/null
+) && echo "PyInstaller OK: $(ls -lh "$SERVER_RESOURCES_DIR/akshare_bridge" 2>/dev/null)" || \
   echo "WARNING: PyInstaller failed, will fallback to system Python"
-# 清理 PyInstaller 临时文件
-rm -rf "$ROOT_DIR/src/server/services/__pycache__" "$ROOT_DIR/src/server/services/akshare_bridge.spec" "$ROOT_DIR/src/server/services/build" 2>/dev/null || true
 
 # 从应用图标 PNG 生成 .icns（与加载页/侧边栏图标一致）
 ICON_SRC="$ROOT_DIR/react-app/public/icon.png"

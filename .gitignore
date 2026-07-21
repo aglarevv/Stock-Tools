@@ -8,6 +8,11 @@ release/
 *.bundle.js
 *.bundle.js.map
 
+# PyInstaller artifacts
+akshare_bridge
+akshare_bridge.exe
+akshare_bridge.spec
+
 # Environment
 .env
 .env.local

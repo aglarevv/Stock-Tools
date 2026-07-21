@@ -34,10 +34,13 @@ jobs:
 
       - name: Build Python bridge (PyInstaller)
         run: |
-          pip3 install pyinstaller akshare --quiet
           cd src/server/services
+          python3 -m venv venv_build
+          source venv_build/bin/activate
+          pip install pyinstaller akshare --quiet
           pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py 2>&1 | tail -3
           ls -lh akshare_bridge 2>/dev/null || echo "No binary output"
+          rm -rf venv_build __pycache__ akshare_bridge.spec build 2>/dev/null || true
 
       - name: Install react-app dependencies
         working-directory: react-app
@@ -91,11 +94,15 @@ jobs:
 
       - name: Install Python dependencies and build bridge
         run: |
-          pip install pyinstaller akshare --quiet
           cd src/server/services
+          python -m venv venv_build
+          venv_build\Scripts\activate
+          pip install pyinstaller akshare --quiet
           pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py
           echo "PyInstaller output:"
-          ls -la akshare_bridge.exe 2>/dev/null || ls -la akshare_bridge 2>/dev/null || echo "No binary output"
+          dir akshare_bridge.exe 2>nul || echo "No binary output"
+          rmdir /s /q venv_build __pycache__ build 2>nul || ver>nul
+          del akshare_bridge.spec 2>nul || ver>nul
         shell: pwsh
 
       - name: Install react-app dependencies
