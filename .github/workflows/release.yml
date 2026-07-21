@@ -32,6 +32,13 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      - name: Build Python bridge (PyInstaller)
+        run: |
+          pip3 install pyinstaller akshare --quiet
+          cd src/server/services
+          pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py 2>&1 | tail -3
+          ls -lh akshare_bridge 2>/dev/null || echo "No binary output"
+
       - name: Install react-app dependencies
         working-directory: react-app
         run: npm ci
@@ -81,6 +88,15 @@ jobs:
 
       - name: Install root dependencies
         run: npm ci
+
+      - name: Install Python dependencies and build bridge
+        run: |
+          pip install pyinstaller akshare --quiet
+          cd src/server/services
+          pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py
+          echo "PyInstaller output:"
+          ls -la akshare_bridge.exe 2>/dev/null || ls -la akshare_bridge 2>/dev/null || echo "No binary output"
+        shell: pwsh
 
       - name: Install react-app dependencies
         working-directory: react-app

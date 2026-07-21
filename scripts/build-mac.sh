@@ -75,6 +75,17 @@ cp "$ROOT_DIR/src/server/services/classifier.js" "$SERVER_RESOURCES_DIR/services
 cp "$ROOT_DIR/package.json" "$SERVER_RESOURCES_DIR/package.json"
 cp "$ROOT_DIR/sources.opml" "$RESOURCES_DIR/sources.opml"
 
+# ── 构建 Python 独立可执行文件（PyInstaller，避免用户自行安装 Python） ──
+echo "Building Python bridge (PyInstaller)..."
+(cd "$ROOT_DIR/src/server/services" && \
+  pip3 install pyinstaller -q 2>/dev/null && \
+  pyinstaller --onefile --name akshare_bridge --distpath "$SERVER_RESOURCES_DIR" \
+    akshare_bridge.py 2>&1 | tail -3) && \
+  echo "PyInstaller OK: $(ls -lh "$SERVER_RESOURCES_DIR/akshare_bridge")" || \
+  echo "WARNING: PyInstaller failed, will fallback to system Python"
+# 清理 PyInstaller 临时文件
+rm -rf "$ROOT_DIR/src/server/services/__pycache__" "$ROOT_DIR/src/server/services/akshare_bridge.spec" "$ROOT_DIR/src/server/services/build" 2>/dev/null || true
+
 # 从应用图标 PNG 生成 .icns（与加载页/侧边栏图标一致）
 ICON_SRC="$ROOT_DIR/react-app/public/icon.png"
 if [ -f "$ICON_SRC" ] && [ -x "$(command -v sips)" ] && [ -x "$(command -v iconutil)" ]; then

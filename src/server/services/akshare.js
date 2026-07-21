@@ -9,8 +9,23 @@ const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
+// ── 检测打包的独立可执行文件（PyInstaller 编译产物） ──
+const BUNDLED_BIN = (() => {
+  const ext = process.platform === "win32" ? ".exe" : "";
+  const candidates = [
+    path.join(__dirname, "akshare_bridge" + ext),
+    path.join(__dirname, "..", "akshare_bridge" + ext),
+  ];
+  for (const c of candidates) {
+    try { if (fs.existsSync(c)) return c; } catch {}
+  }
+  return null;
+})();
+
 // ── 跨平台 Python 自动检测 ──
 function findPython() {
+  // 如果已存在打包的可执行文件，直接返回 null（callBridge 优先使用它）
+  if (BUNDLED_BIN) return null;
   const isWin = process.platform === "win32";
   const candidates = [
     "/opt/homebrew/bin/python3.11",  // macOS Apple Silicon (Homebrew)
@@ -44,25 +59,24 @@ const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
  */
 function callBridge(payload, timeout = 30000) {
   return new Promise((resolve) => {
-    const child = execFile(
-      PYTHON_BIN,
-      [BRIDGE_SCRIPT, JSON.stringify(payload)],
-      { timeout, maxBuffer: 10 * 1024 * 1024 },
-      (err, stdout, stderr) => {
-        if (err) {
-          if (err.killed) {
-            return resolve({ ok: false, error: "AKShare 请求超时" });
-          }
-          return resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
-        }
-        try {
-          const result = JSON.parse(stdout.trim());
-          resolve(result);
-        } catch {
-          resolve({ ok: false, error: `AKShare 响应解析失败: ${stdout.slice(0, 200)}` });
-        }
+    // 优先使用打包的独立可执行文件
+    const useBin = BUNDLED_BIN;
+    const child = useBin
+      ? execFile(useBin, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, callback)
+      : execFile(PYTHON_BIN, [BRIDGE_SCRIPT, JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, callback);
+
+    function callback(err, stdout) {
+      if (err) {
+        if (err.killed) return resolve({ ok: false, error: "AKShare 请求超时" });
+        return resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
       }
-    );
+      try {
+        const result = JSON.parse(stdout.trim());
+        resolve(result);
+      } catch {
+        resolve({ ok: false, error: `AKShare 响应解析失败: ${stdout.slice(0, 200)}` });
+      }
+    }
   });
 }
 
