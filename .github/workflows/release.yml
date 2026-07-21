@@ -99,10 +99,10 @@ jobs:
           venv_build\Scripts\activate
           pip install pyinstaller akshare --quiet
           pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py
-          echo "PyInstaller output:"
-          dir akshare_bridge.exe 2>nul || echo "No binary output"
-          rmdir /s /q venv_build __pycache__ build 2>nul || ver>nul
-          del akshare_bridge.spec 2>nul || ver>nul
+          echo "PyInstaller build complete"
+          if (Test-Path "akshare_bridge.exe") { Write-Host "Binary OK: $(Get-Item akshare_bridge.exe).Length bytes" } else { Write-Host "No binary output" }
+          Remove-Item -Recurse -Force venv_build, __pycache__, build -ErrorAction SilentlyContinue
+          Remove-Item -Force akshare_bridge.spec -ErrorAction SilentlyContinue
         shell: pwsh
 
       - name: Install react-app dependencies
