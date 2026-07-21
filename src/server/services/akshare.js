@@ -11,14 +11,15 @@ const fs = require("fs");
 
 // ── 跨平台 Python 自动检测 ──
 function findPython() {
+  const isWin = process.platform === "win32";
   const candidates = [
     "/opt/homebrew/bin/python3.11",  // macOS Apple Silicon (Homebrew)
     "/opt/homebrew/bin/python3.12",
     "/opt/homebrew/bin/python3.10",
     "/usr/local/bin/python3",
     "/usr/bin/python3",
-    "python3",  // 系统 PATH
-    "python",   // Windows / 回退
+    // PATH 命令：Windows 优先 python，macOS/Linux 优先 python3
+    ...(isWin ? ["python", "python3"] : ["python3", "python"]),
   ];
   // 先尝试绝对路径
   for (const bin of candidates) {
@@ -26,11 +27,11 @@ function findPython() {
       try { fs.accessSync(bin, fs.constants.X_OK); return bin; } catch {}
     }
   }
-  // PATH 命令：按优先级返回，让 execFile 自己解析
+  // PATH 命令：按优先级返回第一个
   for (const bin of candidates) {
     if (!path.isAbsolute(bin)) return bin;
   }
-  return "python3";
+  return isWin ? "python" : "python3";
 }
 const PYTHON_BIN = findPython();
 const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
