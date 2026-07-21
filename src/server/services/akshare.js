@@ -15,6 +15,10 @@ const BUNDLED_BIN = (() => {
   const candidates = [
     path.join(__dirname, "akshare_bridge" + ext),
     path.join(__dirname, "..", "akshare_bridge" + ext),
+    ...(process.resourcesPath ? [
+      path.join(process.resourcesPath, "server", "services", "akshare_bridge" + ext),
+      path.join(process.resourcesPath, "server", "akshare_bridge" + ext),
+    ] : []),
   ];
   for (const c of candidates) {
     try { if (fs.existsSync(c)) return c; } catch {}
@@ -68,6 +72,17 @@ function callBridge(payload, timeout = 30000) {
     function callback(err, stdout) {
       if (err) {
         if (err.killed) return resolve({ ok: false, error: "AKShare 请求超时" });
+        // 如果系统 Python 找不到且未使用打包二进制，尝试兜底查找
+        if (!useBin && (err.code === "ENOENT" || /Python was not found/i.test(err.message))) {
+          const fallback = findFallbackBinary();
+          if (fallback) {
+            execFile(fallback, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, (err2, stdout2) => {
+              if (err2) return resolve({ ok: false, error: `AKShare 调用失败: ${err2.message}` });
+              try { resolve(JSON.parse(stdout2.trim())); } catch { resolve({ ok: false, error: "AKShare 响应解析失败" }); }
+            });
+            return;
+          }
+        }
         return resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
       }
       try {
@@ -76,6 +91,22 @@ function callBridge(payload, timeout = 30000) {
       } catch {
         resolve({ ok: false, error: `AKShare 响应解析失败: ${stdout.slice(0, 200)}` });
       }
+    }
+
+    // 兜底：遍历已知位置查找 PyInstaller 编译产物
+    function findFallbackBinary() {
+      const ext = process.platform === "win32" ? ".exe" : "";
+      const dirs = [
+        __dirname,
+        path.join(__dirname, ".."),
+        process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : null,
+        process.resourcesPath ? path.join(process.resourcesPath, "server") : null,
+      ].filter(Boolean);
+      for (const dir of dirs) {
+        const candidate = path.join(dir, "akshare_bridge" + ext);
+        try { if (fs.existsSync(candidate)) return candidate; } catch {}
+      }
+      return null;
     }
   });
 }
