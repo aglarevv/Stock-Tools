@@ -38,7 +38,11 @@ jobs:
           python3 -m venv venv_build
           source venv_build/bin/activate
           pip install pyinstaller akshare --quiet
-          pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py 2>&1 | tail -3
+          AKDIR=$(python3 -c "import akshare, os; print(os.path.dirname(akshare.__file__))")
+          echo "AKShare data: $AKDIR/file_fold"
+          pyinstaller --onefile --name akshare_bridge --distpath . \
+            --add-data "$AKDIR/file_fold:akshare/file_fold" \
+            akshare_bridge.py 2>&1 | tail -3
           ls -lh akshare_bridge 2>/dev/null || echo "No binary output"
           rm -rf venv_build __pycache__ akshare_bridge.spec build 2>/dev/null || true
 
@@ -98,7 +102,11 @@ jobs:
           python -m venv venv_build
           venv_build\Scripts\activate
           pip install pyinstaller akshare --quiet
-          pyinstaller --onefile --name akshare_bridge --distpath . akshare_bridge.py
+          $akdir = python -c "import akshare, os; print(os.path.dirname(akshare.__file__))"
+          Write-Host "AKShare data: $akdir\file_fold"
+          pyinstaller --onefile --name akshare_bridge --distpath . `
+            --add-data "$akdir\file_fold;akshare\file_fold" `
+            akshare_bridge.py
           echo "PyInstaller build complete"
           if (Test-Path "akshare_bridge.exe") { Write-Host "Binary OK: $(Get-Item akshare_bridge.exe).Length bytes" } else { Write-Host "No binary output" }
           Remove-Item -Recurse -Force venv_build, __pycache__, build -ErrorAction SilentlyContinue
