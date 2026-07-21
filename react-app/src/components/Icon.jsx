@@ -49,6 +49,7 @@ const ICONS = {
   "chevron-right": '<polyline points="9 18 15 12 9 6"/>',
   "trending-up": '<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
   "trending-down": '<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+  target: '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/>',
 
   // ── 内容/数据图标 ──
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
@@ -69,6 +70,18 @@ const ICONS = {
   "x-circle": '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
   "activity": '<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>',
   minus: '<line x1="5" y1="12" x2="19" y2="12"/>',
+
+  "shield": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/>',
+  "bar-chart-2": '<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+  "candlestick": '<path d="M6 4v16"/><path d="M5 8h2v4H5z"/><path d="M17 6v14"/><path d="M16 12h2v4h-2z"/>',
+  "history": '<path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-9 9"/><polyline points="12 7 12 12 15 15"/><polyline points="3 3 3 8 8 8"/>',
+  "pin": '<path d="M12 2v20M12 3a4 4 0 0 0-4 4v1a2 2 0 0 0 2 2h4a2 2 0 0 0 2-2V7a4 4 0 0 0-4-4z"/>',
+  "clipboard-list": '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/><line x1="8" y1="18" x2="12" y2="18"/>',
+  "lock": '<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  "dice": '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><circle cx="15.5" cy="8.5" r="1.5"/><circle cx="8.5" cy="15.5" r="1.5"/><circle cx="15.5" cy="15.5" r="1.5"/>',
+  "info": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>',
+  "palette": '<circle cx="13.5" cy="6.5" r="1.5"/><circle cx="17.5" cy="10.5" r="1.5"/><circle cx="8.5" cy="10.5" r="1.5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.93 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.24-.27-.39-.62-.39-1.01 0-.83.67-1.5 1.5-1.5H16c3.31 0 6-2.69 6-6 0-5.52-4.5-10-10-10z"/><circle cx="6.5" cy="9.5" r="1.5"/><circle cx="10.5" cy="5.5" r="1.5"/>',
+  "dollar": '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
 
   // ── Logo ──
   logo: '<rect width="32" height="32" rx="8" fill="url(#g)"/><path d="M9 12h6l-3 8h4l-4 8 6-14H12L9 12Z" fill="#fff" opacity="0.9"/><defs><linearGradient id="g" x1="0" y1="0" x2="32" y2="32"><stop stopColor="#6366f1"/><stop offset="1" stopColor="#8b5cf6"/></linearGradient></defs>',
@@ -92,7 +105,7 @@ export default function Icon({ name, size = 18, className = "", style = {} }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       className={className}
-      style={{ flexShrink: 0, ...style }}
+      style={{ flexShrink: 0, verticalAlign: "middle", ...style }}
       dangerouslySetInnerHTML={{ __html: pathData }}
     />
   );

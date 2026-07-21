@@ -42,7 +42,7 @@ export default function TradePlanList({ navigate, showToast }) {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 className="topbar-title">
-            <Icon name="trending-up" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
+            <Icon name="plan-list" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
             交易记录
           </h1>
           <span className="badge">全部记录</span>

@@ -12,24 +12,32 @@ import { ApiProvider } from "./hooks/useApi.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import TitleBar from "./components/TitleBar.jsx";
 import Dashboard from "./components/Dashboard.jsx";
+import SectorBoard from "./components/SectorBoard.jsx";
 import TradePlan from "./components/TradePlan.jsx";
 import TradePlanList from "./components/TradePlanList.jsx";
-import FuturesCalc from "./components/FuturesCalc.jsx";
 import ReviewList from "./components/ReviewList.jsx";
 import DailyReview from "./components/DailyReview.jsx";
 import TechnicalIndicators from "./components/TechnicalIndicators.jsx";
 import DailyNews from "./components/DailyNews.jsx";
+import ResearchReports from "./components/ResearchReports.jsx";
+import Positions from "./components/Positions.jsx";
+import PositionSizing from "./components/PositionSizing.jsx";
+import KLineTraining from "./components/KLineTraining.jsx";
 import Settings from "./components/Settings.jsx";
 
 const PAGES = {
   dashboard: Dashboard,
+  sectors: SectorBoard,
   calculator: TradePlan,
   "plan-list": TradePlanList,
-  futures: FuturesCalc,
   "review-list": ReviewList,
   review: DailyReview,
   indicators: TechnicalIndicators,
   news: DailyNews,
+  reports: ResearchReports,
+  positions: Positions,
+  "position-sizing": PositionSizing,
+  "kline-train": KLineTraining,
   settings: Settings,
 };
 

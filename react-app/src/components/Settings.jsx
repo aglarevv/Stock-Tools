@@ -192,7 +192,7 @@ export default function Settings({ showToast }) {
 
       {/* ── 外观 ── */}
       <div className="card">
-        <div className="card-header"><h2>🎨 外观</h2></div>
+        <div className="card-header"><h2><Icon name="palette" size={14} /> 外观</h2></div>
         <div className="card-body">
           <div className="form-row">
             <div className="form-field">
@@ -220,10 +220,10 @@ export default function Settings({ showToast }) {
 
       {/* ── 关于 ── */}
       <div className="card">
-        <div className="card-header"><h2>ℹ️ 关于</h2></div>
+        <div className="card-header"><h2><Icon name="info" size={14} /> 关于</h2></div>
         <div className="card-body">
           <div className="settings-info-row"><span>应用名称</span><span>工具箱 · Toolbox</span></div>
-          <div className="settings-info-row"><span>版本</span><span>{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "2.1.0"}</span></div>
+          <div className="settings-info-row"><span>版本</span><span>{typeof __APP_VERSION__ !== "undefined" ? __APP_VERSION__ : "3.0.0"}</span></div>
         </div>
       </div>
     </div>

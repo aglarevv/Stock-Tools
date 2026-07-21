@@ -4,13 +4,17 @@ import Icon, { Logo } from "./Icon.jsx";
 
 const NAV = [
   { id: "dashboard", label: "看板", icon: "dashboard" },
+  { id: "sectors", label: "股市板块", icon: "trending-up" },
   { id: "calculator", label: "交易计划", icon: "calculator" },
   { id: "plan-list", label: "交易记录", icon: "plan-list" },
-  { id: "futures", label: "合约计算", icon: "futures" },
+  { id: "positions", label: "持仓记录", icon: "trending-up" },
+  { id: "position-sizing", label: "仓位管理", icon: "shield" },
+  { id: "kline-train", label: "K线训练", icon: "candlestick" },
   { id: "review-list", label: "复盘记录", icon: "review-list" },
   { id: "review", label: "每日复盘", icon: "review" },
   { id: "indicators", label: "技术指标", icon: "indicators" },
   { id: "news", label: "每日时事", icon: "news" },
+  { id: "reports", label: "研报分析", icon: "book" },
 ];
 
 export default function Sidebar({ active, onNavigate }) {

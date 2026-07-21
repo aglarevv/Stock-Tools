@@ -3,12 +3,57 @@ import { useApi } from "../hooks/useApi.jsx";
 import { formatMoney, defaults, presets, priceAtRate, transactionFee, toNumber, escapeHtml } from "../utils/helpers.js";
 import Button from "./Button.jsx";
 import { PresetButton } from "./Button.jsx";
+import Icon from "./Icon.jsx";
+
+// 价格笼子参数（连续竞价阶段）
+const CAGE_RULES = {
+  main: { name: "主板", buyPct: 1.02, sellPct: 0.98 },     // ±2%
+  chinext: { name: "创业板", buyPct: 1.02, sellPct: 0.98 }, // ±2%
+  star: { name: "科创板", buyPct: 1.02, sellPct: 0.98 },    // ±2%
+};
 
 export default function TradePlan({ showToast }) {
   const api = useApi();
   const [plan, setPlan] = useState({ ...defaults });
   const [saving, setSaving] = useState(false);
   const [dbOk, setDbOk] = useState(false);
+
+  // ── 价格笼子 ──
+  const [cagePrice, setCagePrice] = useState("");
+  const [cageMarket, setCageMarket] = useState("main");
+  const [cageLoading, setCageLoading] = useState(false);
+
+  const cageRule = CAGE_RULES[cageMarket];
+  const cageBuyMax = cagePrice ? (parseFloat(cagePrice) * cageRule.buyPct).toFixed(2) : null;
+  const cageSellMin = cagePrice ? (parseFloat(cagePrice) * cageRule.sellPct).toFixed(2) : null;
+
+  // 自动获取当前价
+  const fetchCagePrice = useCallback(async () => {
+    const symbol = plan.symbol;
+    if (!symbol || symbol === "自选股") {
+      showToast?.("请先输入股票名称", "warning");
+      return;
+    }
+    setCageLoading(true);
+    try {
+      const searchRes = await api.stockSearch(symbol);
+      if (!searchRes.ok) { showToast?.("股票搜索失败", "error"); return; }
+      const stocks = searchRes.data.filter((r) => r.category === "stock" || r.category === "index");
+      const exact = stocks.find((r) => r.name === symbol) || stocks[0];
+      if (!exact) { showToast?.("未找到该股票", "warning"); return; }
+      const qRes = await api.getMultiMarketQuotes([exact.code]);
+      if (qRes.ok && qRes.data?.[0]?.price) {
+        const p = qRes.data[0].price.toFixed(2);
+        setCagePrice(p);
+        const rule = CAGE_RULES[cageMarket];
+        showToast?.(`当前价 ${p}，买入上限 ${(p * rule.buyPct).toFixed(2)}`, "success");
+      } else {
+        showToast?.("行情获取失败（可能非交易时段）", "warning");
+      }
+    } catch {
+      showToast?.("网络异常，请检查后端服务", "error");
+    } finally { setCageLoading(false); }
+  }, [plan.symbol, api, showToast, cageMarket]);
 
   useEffect(() => { api.health().then((d) => setDbOk(d.database === "ready")).catch(() => {}); }, []);
 
@@ -55,7 +100,7 @@ export default function TradePlan({ showToast }) {
     <div className="page">
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <h1 className="topbar-title">{c.symbol} · 买入价 {formatMoney.format(c.buyPrice)}</h1>
+          <h1 className="topbar-title"><Icon name="calculator" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />{c.symbol} · 买入价 {formatMoney.format(c.buyPrice)}</h1>
           <span className="badge">盈亏比 {c.riskReward ? c.riskReward.toFixed(2) : "∞"}:1</span>
         </div>
         <div className="topbar-actions">
@@ -111,6 +156,74 @@ export default function TradePlan({ showToast }) {
               ))}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── 价格笼子 ── */}
+      <div className="card" style={{ marginTop: 12 }}>
+        <div className="card-header">
+          <h2>🔒 价格笼子（连续竞价）</h2>
+          <span className="badge" style={{ background: "var(--warning-soft, rgba(217,119,6,0.1))", color: "var(--warning)", fontSize: 10 }}>
+            买入≤基准价×{cageRule.buyPct.toFixed(0)}%  卖出≥基准价×{(cageRule.sellPct * 100).toFixed(0)}%
+          </span>
+        </div>
+        <div className="card-body">
+          <div className="form-row cols-3">
+            <div className="form-field">
+              <label>市场类型</label>
+              <select value={cageMarket} onChange={(e) => setCageMarket(e.target.value)}>
+                {Object.entries(CAGE_RULES).map(([k, v]) => (
+                  <option key={k} value={k}>{v.name}</option>
+                ))}
+              </select>
+            </div>
+            <div className="form-field">
+              <label>基准价（最新成交价）</label>
+              <div style={{ display: "flex", gap: 6 }}>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={cagePrice}
+                  onChange={(e) => setCagePrice(e.target.value)}
+                  placeholder="手动输入或点击获取"
+                  style={{ flex: 1 }}
+                />
+                <Button variant="ghost" icon="sparkles" loading={cageLoading} onClick={fetchCagePrice} title="根据股票名称自动获取实时行情">
+                  获取
+                </Button>
+              </div>
+            </div>
+            <div className="form-field">
+              <label>自动填入买入价</label>
+              <Button
+                variant="primary"
+                disabled={!cageBuyMax}
+                onClick={() => { set("buyPrice", cageBuyMax); showToast?.(`买入价已设为 ${cageBuyMax}`, "success"); }}
+                style={{ width: "100%" }}
+              >
+                填入 {cageBuyMax || "--"}
+              </Button>
+            </div>
+          </div>
+          {cageBuyMax && (
+            <div className="metrics-row" style={{ marginTop: 12 }}>
+              <div className="metric-card metric-profit">
+                <div className="metric-label">买入上限（笼子顶部）</div>
+                <div className="metric-value green">{cageBuyMax}</div>
+                <div className="metric-desc">基准价 × {cageRule.buyPct.toFixed(0)}%</div>
+              </div>
+              <div className="metric-card metric-base">
+                <div className="metric-label">当前基准价</div>
+                <div className="metric-value">{parseFloat(cagePrice).toFixed(2)}</div>
+                <div className="metric-desc">有效申报范围</div>
+              </div>
+              <div className="metric-card metric-loss">
+                <div className="metric-label">卖出下限（笼子底部）</div>
+                <div className="metric-value red">{cageSellMin}</div>
+                <div className="metric-desc">基准价 × {(cageRule.sellPct * 100).toFixed(0)}%</div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

@@ -90,7 +90,13 @@ export const methodologySteps = [
  * @returns {number} 0-100 的百分比
  */
 export function calcCompleteness(review) {
-  const fields = [review.symbol, review.buyPrice > 0, review.shares > 0, review.holdingStyle,
+  const hasTrades = Array.isArray(review.trades) && review.trades.length > 0
+    && review.trades.some((t) => t.symbol && t.buyPrice > 0);
+  const fields = [
+    hasTrades || (review.symbol && review.symbol !== "自选股"),
+    hasTrades || review.buyPrice > 0,
+    hasTrades || review.shares > 0,
+    hasTrades || review.holdingStyle,
     review.indexJudgment, review.volumeJudgment, review.sentimentJudgment, review.capitalDirection,
     review.leadingSectors, review.laggingSectors, review.sustainability,
     review.stockStrength, review.volAmpRanking, review.limitAnalysis,

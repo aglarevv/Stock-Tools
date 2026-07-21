@@ -25,8 +25,9 @@ export default function ReviewEditModal({ sectionConfig, review, onFieldChange, 
                   className={review[f.key] ? "filled" : ""}
                   value={review[f.key] || ""}
                   onChange={(e) => onFieldChange(f.key, e.target.value)}
-                  rows="2"
+                  rows="3"
                   placeholder={f.placeholder}
+                  style={{ resize: "vertical", minHeight: 60, maxHeight: 200 }}
                 />
               </div>
             </div>

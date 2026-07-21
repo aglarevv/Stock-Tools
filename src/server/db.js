@@ -437,9 +437,15 @@ async function addColumnIfNotExists(tableName, columnName, columnDef, fallback) 
   if (await columnExists(tableName, columnName)) return;
 
   if (dbType === "mysql") {
+    // 构建 DEFAULT 子句：null 用 DEFAULT NULL，其他值用 DEFAULT 'value'
+    let defaultClause = "";
+    if (fallback === null || fallback === undefined) {
+      defaultClause = " DEFAULT NULL";
+    } else {
+      defaultClause = ` DEFAULT '${String(fallback).replace(/'/g, "\\'")}'`;
+    }
     await mysqlPool.execute(
-      `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${columnDef} DEFAULT ?`,
-      [fallback],
+      `ALTER TABLE \`${tableName}\` ADD COLUMN \`${columnName}\` ${columnDef}${defaultClause}`,
     );
     return;
   }
@@ -555,6 +561,8 @@ module.exports = {
   dropColumnIfExists,
   addUniqueIndexIfMissing,
   getDbType,
+  getSQLiteDb: () => sqliteDb,  // 暴露原始 SQLite 连接（供 dbSync 迁移用）
+  saveSQLite,                   // 保存 SQLite 到磁盘（供 dbSync 迁移后持久化）
   isMySQL,
   isSQLite,
   readConfig,

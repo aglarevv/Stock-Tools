@@ -30,6 +30,7 @@ export const presets = {
 
 export const reviewDefaults = (date) => ({
   reviewDate: date, symbol: "自选股", buyPrice: 10, sellPrice: "", shares: 1000, holdingStyle: "短线",
+  trades: [],
   indexJudgment: "", volumeJudgment: "", sentimentJudgment: "", capitalDirection: "",
   leadingSectors: "", laggingSectors: "", sustainability: "",
   stockStrength: "", volAmpRanking: "", limitAnalysis: "",

@@ -42,7 +42,7 @@ export default function ReviewList({ navigate, showToast }) {
       <div className="topbar">
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h1 className="topbar-title">
-            <Icon name="review" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
+            <Icon name="review-list" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
             复盘记录
           </h1>
           <span className="badge">全部记录</span>
@@ -64,10 +64,15 @@ export default function ReviewList({ navigate, showToast }) {
 
       <div className="card">
         <div className="card-body">
-          {pageRecords.length ? pageRecords.map((r) => (
+          {pageRecords.length ? pageRecords.map((r) => {
+            const tradeCount = Array.isArray(r.trades) ? r.trades.length : 0;
+            const displayLabel = tradeCount > 1
+              ? `${r.trades[0].symbol} 等${tradeCount}只`
+              : escapeHtml(r.symbol);
+            return (
             <div key={r.id} className="record-item" onClick={() => navigate("review", { reviewId: r.id })}>
               <span style={{ flex: 1 }}>
-                <span className="record-symbol">{r.reviewDate} {escapeHtml(r.symbol)}</span>
+                <span className="record-symbol">{r.reviewDate} {displayLabel}</span>
                 &nbsp;{escapeHtml(r.holdingStyle)}&nbsp;
                 {r.sellPrice == null ? "未卖出" : formatMoney.format(r.sellPrice)}&nbsp;
                 <span style={{ color: r.pnlAmount >= 0 ? "var(--profit)" : "var(--loss)" }}>{formatMoney.format(r.pnlAmount)}</span>
@@ -75,7 +80,8 @@ export default function ReviewList({ navigate, showToast }) {
               <Button variant="delete" size="sm" style={{ flexShrink: 0 }}
                 onClick={(e) => { e.stopPropagation(); setDeleteTarget({ id: r.id, symbol: r.symbol }); }} icon="trash"></Button>
             </div>
-          )) : <div className="empty-text">暂无记录</div>}
+            );
+          }) : <div className="empty-text">暂无记录</div>}
         </div>
       </div>
 

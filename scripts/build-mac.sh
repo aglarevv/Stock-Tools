@@ -34,6 +34,7 @@ swiftc \
 rm -rf "$WEB_RESOURCES_DIR"/*
 cp "$ROOT_DIR/react-app/dist/index.html" "$WEB_RESOURCES_DIR/index.html"
 cp "$ROOT_DIR/react-app/dist/icon.png" "$WEB_RESOURCES_DIR/icon.png"
+cp "$ROOT_DIR/react-app/dist/favicon.svg" "$WEB_RESOURCES_DIR/favicon.svg"
 cp -r "$ROOT_DIR/react-app/dist/assets" "$WEB_RESOURCES_DIR/assets"
 # Bundle Node.js server with all JS dependencies (eliminates node_modules dependency hell)
 echo "Bundling server..."

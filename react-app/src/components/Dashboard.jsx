@@ -40,36 +40,34 @@ export default function Dashboard({ navigate, showToast }) {
           <div className="metric-value">{data.totalReviews}</div>
           <div className="metric-desc">已保存的复盘数 · 点击查看</div>
         </div>
-        <div className="metric-card metric-profit">
+        <div className="metric-card metric-profit" onClick={() => navigate("positions")}>
           <div className="metric-label">胜率</div>
           <div className="metric-value">{data.winRate}%</div>
-          <div className="metric-desc">胜 {data.winCount} / 负 {data.lossCount}</div>
+          <div className="metric-desc">胜 {data.winCount} / 负 {data.lossCount} · 点击查看</div>
+        </div>
+      </div>
+
+      <div className="metrics-row">
+        <div className="metric-card metric-base" onClick={() => navigate("positions")}>
+          <div className="metric-label">持仓数量</div>
+          <div className="metric-value">{data.positionCount || 0}</div>
+          <div className="metric-desc">持仓成本 {formatMoney.format(data.positionCost || 0)}</div>
+        </div>
+        <div className="metric-card metric-info" onClick={() => navigate("positions")}>
+          <div className="metric-label">持仓市值</div>
+          <div className="metric-value">{formatMoney.format(data.positionMarketValue || 0)}</div>
+          <div className="metric-desc">净盈亏 {formatMoney.format(data.netPnl || 0)}</div>
+        </div>
+        <div className={`metric-card ${data.netPnl >= 0 ? "metric-profit" : "metric-loss"}`} onClick={() => navigate("positions")}>
+          <div className="metric-label">盈亏汇总</div>
+          <div className="metric-value" style={{ fontSize: 18 }}>{formatMoney.format(data.totalProfit || 0)}</div>
+          <div className="metric-desc">盈 / {formatMoney.format(Math.abs(data.totalLoss || 0))} 亏</div>
         </div>
       </div>
 
       <div className="content-grid">
         <div className="card">
-          <div className="card-header"><h2>盈亏汇总</h2></div>
-          <div className="card-body">
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-              <div className="metric-card metric-profit" style={{ border: "none", padding: 12, background: "var(--bg-hover)" }}>
-                <div className="metric-label">总盈利</div>
-                <div className="metric-value" style={{ fontSize: 20, color: "var(--profit)" }}>{formatMoney.format(data.totalProfit)}</div>
-              </div>
-              <div className="metric-card metric-loss" style={{ border: "none", padding: 12, background: "var(--bg-hover)" }}>
-                <div className="metric-label">总亏损</div>
-                <div className="metric-value" style={{ fontSize: 20, color: "var(--loss)" }}>{formatMoney.format(data.totalLoss)}</div>
-              </div>
-            </div>
-            <div style={{ textAlign: "center", marginTop: 8 }}>
-              <span style={{ fontSize: 13, color: "var(--text-muted)" }}>净盈亏：</span>
-              <strong style={{ fontSize: 18, fontFamily: "var(--font-mono)", color: data.netPnl >= 0 ? "var(--profit)" : "var(--loss)" }}>{formatMoney.format(data.netPnl)}</strong>
-            </div>
-          </div>
-        </div>
-
-        <div className="card">
-          <div className="card-header"><h2>📝 最近复盘摘要</h2><span className="card-hint">{latest?.reviewDate}</span></div>
+          <div className="card-header"><h2>最近复盘摘要</h2><span className="card-hint">{latest?.reviewDate}</span></div>
           <div className="card-body">
             {latest ? (
               <div onClick={() => navigate("review", { reviewId: latest.id })} style={{ cursor: "pointer" }}>
