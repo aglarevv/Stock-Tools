@@ -24,8 +24,21 @@ mkdir -p "$MACOS_DIR" "$WEB_RESOURCES_DIR" "$SERVER_RESOURCES_DIR"
 echo "Building React frontend..."
 (cd "$ROOT_DIR/react-app" && npx vite build)
 
+# 检测架构并编译 Swift 壳
+ARCH=$(uname -m)
+echo "Building for architecture: $ARCH"
+MIN_OS="14.0"  # 支持 macOS 14+ (包含 15)
+SWIFT_FLAGS="-O -whole-module-optimization"
+if [ "$ARCH" = "arm64" ]; then
+  TARGET="${ARCH}-apple-macosx${MIN_OS}"
+else
+  TARGET="${ARCH}-apple-macosx${MIN_OS}"
+fi
+echo "Swift target: $TARGET"
 swiftc \
   "$ROOT_DIR/react-app/macos/AppDelegate.swift" \
+  -target "$TARGET" \
+  $SWIFT_FLAGS \
   -framework Cocoa \
   -framework WebKit \
   -o "$MACOS_DIR/$APP_NAME"
@@ -81,6 +94,14 @@ fi
 
 cp "$ROOT_DIR/react-app/macos/Info.plist" "$CONTENTS_DIR/Info.plist"
 
+# ── 构建信息 ──
+BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+COMMIT_HASH=$(cd "$ROOT_DIR" && git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+cat > "$RESOURCES_DIR/build-info.json" <<EOF
+{"version":"3.0.0","buildDate":"$BUILD_DATE","commit":"$COMMIT_HASH","arch":"$ARCH","target":"$TARGET"}
+EOF
+echo "Build info: $(cat "$RESOURCES_DIR/build-info.json")"
+
 # 注册图标到系统
 touch "$APP_DIR"
 
@@ -95,10 +116,10 @@ echo "Obfuscation complete."
 echo "Signing app (ad-hoc)..."
 ENTITLEMENTS="$ROOT_DIR/react-app/macos/StockToolbox.entitlements"
 if [ -f "$ENTITLEMENTS" ]; then
-  codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "$APP_DIR" 2>/dev/null || codesign --force --deep --sign - "$APP_DIR" 2>/dev/null
+  echo "Using entitlements: $ENTITLEMENTS"
+  codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" --timestamp=none "$APP_DIR" && echo "Signing OK (ad-hoc + entitlements)" || { echo "WARNING: codesign failed, app still usable (right-click -> Open)"; }
 else
-  codesign --force --deep --sign - "$APP_DIR" 2>/dev/null
+  codesign --force --deep --sign - --timestamp=none "$APP_DIR" && echo "Signing OK (ad-hoc, no entitlements)" || { echo "WARNING: codesign failed, app still usable (right-click -> Open)"; }
 fi
-echo "Signing complete (ad-hoc)"
 
 echo "Built $APP_DIR"
