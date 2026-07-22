@@ -44,17 +44,18 @@ export default function StockSearch({ navigate, showToast }) {
 
   const openStockDetail = useCallback(async (code, name) => {
     if (!code) return;
-    setDetail({ code, name });
+    const cleanCode = code.replace(/^(sh|sz|bj|hk|us)/, "");
+    setDetail({ code: cleanCode, name });
     setDetailQuote(null);
     setDetailKline(null);
     setDetailLoading(true);
     try {
       const [qRes, kRes] = await Promise.all([
         api.getMultiMarketQuotes([code]),
-        api.getStockKline(code, detailPeriod, 120),
+        api.getStockKline(cleanCode, detailPeriod),
       ]);
       if (qRes.ok && Array.isArray(qRes.data) && qRes.data[0]) setDetailQuote(qRes.data[0]);
-      if (kRes.ok) setDetailKline(kRes.data?.klines || []);
+      if (kRes.ok) setDetailKline(kRes.data?.klines || kRes.data || []);
     } catch {} finally { setDetailLoading(false); }
   }, [api, detailPeriod]);
 
@@ -62,8 +63,8 @@ export default function StockSearch({ navigate, showToast }) {
     setDetailPeriod(p);
     if (detail?.code) {
       setDetailLoading(true);
-      api.getStockKline(detail.code, p, 120).then(r => {
-        if (r.ok) setDetailKline(r.data?.klines || []);
+      api.getStockKline(detail.code, p).then(r => {
+        if (r.ok) setDetailKline(r.data?.klines || r.data || []);
       }).catch(() => {}).finally(() => setDetailLoading(false));
     }
   }, [api, detail]);
@@ -105,35 +106,31 @@ export default function StockSearch({ navigate, showToast }) {
                 <th style={{ padding: "8px 10px", textAlign: "right" }}>类型</th>
                 <th style={{ padding: "8px 10px", textAlign: "right" }}>最新价</th>
                 <th style={{ padding: "8px 10px", textAlign: "right" }}>涨跌幅</th>
-                <th style={{ padding: "8px 10px", textAlign: "center" }}>操作</th>
               </tr>
             </thead>
             <tbody>
               {results.map((r, i) => {
                 const q = quotes?.[r.code];
+                const chg = q?.changePercent || r.changePercent || 0;
                 return (
-                  <tr key={r.code || i} style={{ borderTop: "1px solid var(--border-color)" }}>
+                  <tr key={r.code || i} style={{ borderTop: "1px solid var(--border-color)", cursor: "pointer" }}
+                    onClick={() => openStockDetail(r.code, r.name)}>
                     <td style={{ padding: "8px 10px" }}>
-                      <span className="badge">{cnMarket(r.code)}</span>{" "}
+                      <span className="badge" style={{ fontSize: 11 }}>{cnMarket(r.code)}</span>{" "}
                       <span style={{ fontFamily: "monospace", fontSize: 13 }}>{r.code?.replace(/^(sh|sz|bj|hk|us)/, "")}</span>
                     </td>
                     <td style={{ padding: "8px 10px", fontWeight: 500 }}>{r.name || r.code}</td>
                     <td style={{ padding: "8px 10px", textAlign: "right", fontSize: 12, color: "var(--text-secondary)" }}>
                       {r.category === "stock" ? "股票" : r.category === "index" ? "指数" : r.category === "etf" ? "ETF" : r.category === "fund" ? "基金" : r.category || ""}
                     </td>
-                    <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace" }}>
+                    <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 13 }}>
                       {fmt(q?.price || r.price)}
                     </td>
                     <td style={{
-                      padding: "8px 10px", textAlign: "right", fontFamily: "monospace",
-                      color: (q?.changePercent || 0) >= 0 ? "var(--up-color)" : "var(--down-color)",
+                      padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 13,
+                      color: chg >= 0 ? "var(--up-color)" : "var(--down-color)",
                     }}>
-                      {fmt(q?.changePercent || r.changePercent)}%
-                    </td>
-                    <td style={{ padding: "8px 10px", textAlign: "center" }}>
-                      <button className="btn btn-sm" onClick={() => openStockDetail(r.code, r.name)}>
-                        <Icon name="candlestick" size={12} /> K线
-                      </button>
+                      {chg >= 0 ? "+" : ""}{fmt(chg)}%
                     </td>
                   </tr>
                 );
