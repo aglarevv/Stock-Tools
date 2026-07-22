@@ -6,11 +6,18 @@ const fs = require("fs");
 
 const BUNDLED_BIN = (() => {
   const ext = process.platform === "win32" ? ".exe" : "";
-  for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
-    if (d && fs.existsSync(path.join(d, "stock_bridge" + ext))) return path.join(d, "stock_bridge" + ext);
+  const candidates = [__dirname, path.join(__dirname, ".."),
+    process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "",
+    process.resourcesPath ? path.join(process.resourcesPath, "server") : ""];
+  for (const d of candidates) {
+    if (!d) continue;
+    for (const name of ["stock_bridge", "akshare_bridge"]) {
+      const p = path.join(d, name + ext);
+      if (fs.existsSync(p)) return p;
     }
-    return null;
-    })();
+  }
+  return null;
+})();
 
     function findPython() {
     const isWin = process.platform === "win32";
@@ -25,15 +32,17 @@ const BUNDLED_BIN = (() => {
 
     // 查找 stock_bridge.py 脚本（打包应用下在 resources/server/services/）
     function findBridgeScript() {
-    const candidates = [__dirname, path.join(__dirname, ".."),
-    process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "",
-    process.resourcesPath ? path.join(process.resourcesPath, "server") : ""];
-    for (const d of candidates) {
-    if (!d) continue;
-    const p = path.join(d, "stock_bridge.py");
-    if (fs.existsSync(p)) return p;
-    }
-    return path.join(__dirname, "stock_bridge.py"); // fallback
+      const candidates = [__dirname, path.join(__dirname, ".."),
+        process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "",
+        process.resourcesPath ? path.join(process.resourcesPath, "server") : ""];
+      for (const d of candidates) {
+        if (!d) continue;
+        for (const name of ["stock_bridge.py", "akshare_bridge.py"]) {
+          const p = path.join(d, name);
+          if (fs.existsSync(p)) return p;
+        }
+      }
+      return path.join(__dirname, "stock_bridge.py"); // fallback
     }
 
 const BRIDGE_SCRIPT = findBridgeScript();
@@ -57,16 +66,18 @@ function callBridge(payload, timeout = 30000) {
       const ext = process.platform === "win32" ? ".exe" : "";
       for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
         if (!d) continue;
-        const bin = path.join(d, "stock_bridge" + ext);
-        if (fs.existsSync(bin)) {
-          const c2 = execFile(bin, [JSON.stringify(payload)], { timeout: 30000, maxBuffer: 10 * 1024 * 1024, encoding: "utf-8" });
-          let out2 = "";
-          c2.stdout.on("data", d => out2 += d);
-          c2.on("close", () => {
-            if (out2.trim()) try { resolve(JSON.parse(out2)); return; } catch {}
-            resolve({ ok: false, error: `AKShare 调用失败: ${stderr || stdout.slice(0, 200) || errMsg}` });
-          });
-          return;
+        for (const name of ["stock_bridge", "akshare_bridge"]) {
+          const bin = path.join(d, name + ext);
+          if (fs.existsSync(bin)) {
+            const c2 = execFile(bin, [JSON.stringify(payload)], { timeout: 30000, maxBuffer: 10 * 1024 * 1024, encoding: "utf-8" });
+            let out2 = "";
+            c2.stdout.on("data", d => out2 += d);
+            c2.on("close", () => {
+              if (out2.trim()) try { resolve(JSON.parse(out2)); return; } catch {}
+              resolve({ ok: false, error: `AKShare 调用失败: ${stderr || stdout.slice(0, 200) || errMsg}` });
+            });
+            return;
+          }
         }
       }
       let errMsg = stderr || stdout.slice(0, 200) || "无输出";
