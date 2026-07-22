@@ -103,6 +103,10 @@ FALLBACK_STOCKS = [
 ]
 
 
+# ── 必盈API配置 ──
+BIYING_LICENCE = "71A8595A-EE20-4676-BE62-266679583A70"
+
+
 def get_random_kline(kline_count=500):
     """随机获取一只A股的K线数据（用于训练）
 
@@ -112,7 +116,6 @@ def get_random_kline(kline_count=500):
         # 先尝试从必盈API获取全量股票并随机挑选
         try:
             import urllib.request, json as _json, ssl
-            BIYING_LICENCE = "71A8595A-EE20-4676-BE62-266679583A70"
             url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
             ctx = ssl.create_default_context()
             ctx.check_hostname = False
@@ -322,75 +325,143 @@ def get_quotes(symbols):
 # ═══════════════════════════════════════════════════════════════════
 
 def get_industries(top_n=None):
-    """获取行业板块列表（多源降级：东方财富 → 同花顺）"""
+    """获取行业板块列表（多源降级：东方财富 → 同花顺 → 必盈API）"""
     df, err = try_sources(
         ("东方财富", lambda: ak.stock_board_industry_name_em()),
         ("同花顺", lambda: ak.stock_board_industry_summary_ths()),
     )
+    # AKShare 源失败时降级到必盈API
     if df is None or df.empty:
-        return []
+        return _fetch_biying_primary(top_n)
 
-    # 标准化字段名（同花顺与东方财富字段名不同）
-    name_col = "板块名称" if "板块名称" in df.columns else "行业名称" if "行业名称" in df.columns else df.columns[0]
+    name_col = "板块名称" if "板块名称" in df.columns else "行业名称" if "行业名称" in df.columns else "板块" if "板块" in df.columns else df.columns[0]
     change_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
-    
+    code_col = "板块代码" if "板块代码" in df.columns else "行业代码" if "行业代码" in df.columns else "代码" if "代码" in df.columns else None
+    price_col = "最新价" if "最新价" in df.columns else "最新" if "最新" in df.columns else None
+    change_amt_col = "涨跌额" if "涨跌额" in df.columns else None
+    volume_col = "总成交量" if "总成交量" in df.columns else "成交量" if "成交量" in df.columns else None
+    amount_col = "总成交额" if "总成交额" in df.columns else "成交额" if "成交额" in df.columns else None
+    turnover_col = "换手率" if "换手率" in df.columns else None
+    rise_col = "上涨家数" if "上涨家数" in df.columns else "上涨" if "上涨" in df.columns else None
+    fall_col = "下跌家数" if "下跌家数" in df.columns else "下跌" if "下跌" in df.columns else None
+    lead_col = "领涨股" if "领涨股" in df.columns else "领涨股票" if "领涨股票" in df.columns else "领涨个股" if "领涨个股" in df.columns else None
+    lead_chg_col = "领涨股-涨跌幅" if "领涨股-涨跌幅" in df.columns else "领涨股票-涨跌幅" if "领涨股票-涨跌幅" in df.columns else "领涨个股涨跌幅" if "领涨个股涨跌幅" in df.columns else None
+
     df = df.sort_values(change_col or df.columns[-1], ascending=False) if change_col else df
     if top_n:
         df = df.head(top_n)
     boards = []
     for i, (_, row) in enumerate(df.iterrows()):
-        code_val = str(row.get("板块代码", row.get("行业代码", row.get("代码", ""))))
+        code_val = str(row.get(code_col, "")) if code_col else ""
         name_val = str(row.get(name_col, ""))
         chg = float(row.get(change_col, 0) or 0) if change_col else 0
         boards.append({
             "code": code_val, "name": name_val, "rank": i + 1,
-            "price": float(row.get("最新价", row.get("最新", 0)) or 0),
-            "change": float(row.get("涨跌额", 0) or 0),
+            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
+            "change": float(row.get(change_amt_col, 0) or 0) if change_amt_col else 0,
             "changePercent": chg,
-            "volume": float(row.get("成交量", 0) or 0),
-            "amount": float(row.get("成交额", 0) or 0),
-            "turnoverRate": float(row.get("换手率", 0) or 0),
-            "riseCount": int(row.get("上涨家数", row.get("上涨", 0)) or 0),
-            "fallCount": int(row.get("下跌家数", row.get("下跌", 0)) or 0),
-            "leadingStock": str(row.get("领涨股票", row.get("领涨个股", "")) or ""),
-            "leadingStockChangePercent": float(row.get("领涨股票-涨跌幅", row.get("领涨个股涨跌幅", 0)) or 0),
+            "volume": float(row.get(volume_col, 0) or 0) if volume_col else 0,
+            "amount": float(row.get(amount_col, 0) or 0) if amount_col else 0,
+            "turnoverRate": float(row.get(turnover_col, 0) or 0) if turnover_col else 0,
+            "riseCount": int(row.get(rise_col, 0) or 0) if rise_col else 0,
+            "fallCount": int(row.get(fall_col, 0) or 0) if fall_col else 0,
+            "leadingStock": str(row.get(lead_col, "") or "") if lead_col else "",
+            "leadingStockChangePercent": float(row.get(lead_chg_col, 0) or 0) if lead_chg_col else 0,
             "boardType": "industry",
         })
     return boards
 
 
+def _fetch_biying_primary(top_n=None):
+    """从必盈API获取一级市场板块列表（降级：仅作为兜底显示）"""
+    import urllib.request, json as _json, ssl
+    try:
+        url = f"https://api.biyingapi.com/hslt/sectorslist/{BIYING_LICENCE}"
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
+        data = _json.loads(resp.read().decode("utf-8"))
+        boards = []
+        for i, item in enumerate(data[:top_n] if top_n else data):
+            boards.append({
+                "code": item.get("dm", ""), "name": item.get("mc", ""),
+                "rank": i + 1, "price": 0, "change": 0, "changePercent": 0,
+                "volume": 0, "amount": 0, "turnoverRate": 0,
+                "riseCount": 0, "fallCount": 0,
+                "leadingStock": "", "leadingStockChangePercent": 0,
+                "boardType": "industry",
+            })
+        return boards
+    except Exception:
+        return []
+
+
+def _fetch_biying_concepts(top_n=None):
+    """从必盈API获取概念指数列表"""
+    import urllib.request, json as _json, ssl
+    try:
+        url = f"https://api.biyingapi.com/hslt/sectorslist/{BIYING_LICENCE}"
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
+        data = _json.loads(resp.read().decode("utf-8"))
+        boards = []
+        for i, item in enumerate(data[:top_n] if top_n else data):
+            boards.append({
+                "code": item.get("dm", ""), "name": item.get("mc", ""),
+                "rank": i + 1, "price": 0, "change": 0, "changePercent": 0,
+                "volume": 0, "amount": 0, "turnoverRate": 0,
+                "riseCount": 0, "fallCount": 0,
+                "leadingStock": "", "leadingStockChangePercent": 0,
+                "boardType": "concept",
+            })
+        return boards
+    except Exception:
+        return []
+
+
 def get_concepts(top_n=None):
-    """获取概念板块列表（多源降级：东方财富 → 同花顺）"""
+    """获取概念板块列表（多源降级：东方财富 → 同花顺 → 必盈API）"""
     df, err = try_sources(
         ("东方财富", lambda: ak.stock_board_concept_name_em()),
         ("同花顺", lambda: ak.stock_board_concept_name_ths()),
     )
     if df is None or df.empty:
-        return []
+        return _fetch_biying_concepts(top_n)
 
-    name_col = "板块名称" if "板块名称" in df.columns else "概念名称" if "概念名称" in df.columns else df.columns[0]
+    name_col = "板块名称" if "板块名称" in df.columns else "概念名称" if "概念名称" in df.columns else "板块" if "板块" in df.columns else df.columns[0]
     change_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
+    code_col = "板块代码" if "板块代码" in df.columns else "概念代码" if "概念代码" in df.columns else "代码" if "代码" in df.columns else None
+    price_col = "最新价" if "最新价" in df.columns else "最新" if "最新" in df.columns else None
+    change_amt_col = "涨跌额" if "涨跌额" in df.columns else None
+    volume_col = "总成交量" if "总成交量" in df.columns else "成交量" if "成交量" in df.columns else None
+    amount_col = "总成交额" if "总成交额" in df.columns else "成交额" if "成交额" in df.columns else None
+    turnover_col = "换手率" if "换手率" in df.columns else None
+    rise_col = "上涨家数" if "上涨家数" in df.columns else "上涨" if "上涨" in df.columns else None
+    fall_col = "下跌家数" if "下跌家数" in df.columns else "下跌" if "下跌" in df.columns else None
+    lead_col = "领涨股" if "领涨股" in df.columns else "领涨股票" if "领涨股票" in df.columns else "领涨个股" if "领涨个股" in df.columns else None
+    lead_chg_col = "领涨股-涨跌幅" if "领涨股-涨跌幅" in df.columns else "领涨股票-涨跌幅" if "领涨股票-涨跌幅" in df.columns else "领涨个股涨跌幅" if "领涨个股涨跌幅" in df.columns else None
 
     df = df.sort_values(change_col or df.columns[-1], ascending=False) if change_col else df
     if top_n:
         df = df.head(top_n)
     boards = []
     for i, (_, row) in enumerate(df.iterrows()):
-        code_val = str(row.get("板块代码", row.get("概念代码", row.get("代码", ""))))
+        code_val = str(row.get(code_col, "")) if code_col else ""
         name_val = str(row.get(name_col, ""))
         chg = float(row.get(change_col, 0) or 0) if change_col else 0
         boards.append({
             "code": code_val, "name": name_val, "rank": i + 1,
-            "price": float(row.get("最新价", row.get("最新", 0)) or 0),
-            "change": float(row.get("涨跌额", 0) or 0),
+            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
+            "change": float(row.get(change_amt_col, 0) or 0) if change_amt_col else 0,
             "changePercent": chg,
-            "volume": float(row.get("成交量", 0) or 0),
-            "amount": float(row.get("成交额", 0) or 0),
-            "turnoverRate": float(row.get("换手率", 0) or 0),
-            "riseCount": int(row.get("上涨家数", row.get("上涨", 0)) or 0),
-            "fallCount": int(row.get("下跌家数", row.get("下跌", 0)) or 0),
-            "leadingStock": str(row.get("领涨股票", row.get("领涨个股", "")) or ""),
-            "leadingStockChangePercent": float(row.get("领涨股票-涨跌幅", row.get("领涨个股涨跌幅", 0)) or 0),
+            "volume": float(row.get(volume_col, 0) or 0) if volume_col else 0,
+            "amount": float(row.get(amount_col, 0) or 0) if amount_col else 0,
+            "turnoverRate": float(row.get(turnover_col, 0) or 0) if turnover_col else 0,
+            "riseCount": int(row.get(rise_col, 0) or 0) if rise_col else 0,
+            "fallCount": int(row.get(fall_col, 0) or 0) if fall_col else 0,
+            "leadingStock": str(row.get(lead_col, "") or "") if lead_col else "",
+            "leadingStockChangePercent": float(row.get(lead_chg_col, 0) or 0) if lead_chg_col else 0,
             "boardType": "concept",
         })
     return boards
