@@ -1,203 +1,80 @@
-/**
- * AKShare 数据桥接 — Node.js 封装
- *
- * 通过子进程调用 Python 脚本获取数据，作为 stockSdk 的降级方案。
- * 所有方法签名与 stockSdk 保持一致，返回 { ok, data/error }。
- */
-
+/** AKShare Node.js 桥接 — 仅保留前端仍使用的接口 */
+"use strict";
 const { execFile } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 
-// ── 检测打包的独立可执行文件（PyInstaller 编译产物） ──
 const BUNDLED_BIN = (() => {
   const ext = process.platform === "win32" ? ".exe" : "";
-  const candidates = [
-    path.join(__dirname, "akshare_bridge" + ext),
-    path.join(__dirname, "..", "akshare_bridge" + ext),
-    ...(process.resourcesPath ? [
-      path.join(process.resourcesPath, "server", "services", "akshare_bridge" + ext),
-      path.join(process.resourcesPath, "server", "akshare_bridge" + ext),
-    ] : []),
-  ];
-  for (const c of candidates) {
-    try { if (fs.existsSync(c)) return c; } catch {}
+  for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
+    if (d && fs.existsSync(path.join(d, "akshare_bridge" + ext))) return path.join(d, "akshare_bridge" + ext);
   }
   return null;
 })();
 
-// ── 跨平台 Python 自动检测 ──
 function findPython() {
-  // 如果已存在打包的可执行文件，直接返回 null（callBridge 优先使用它）
-  if (BUNDLED_BIN) return null;
   const isWin = process.platform === "win32";
-  const candidates = [
-    "/opt/homebrew/bin/python3.11",  // macOS Apple Silicon (Homebrew)
-    "/opt/homebrew/bin/python3.12",
-    "/opt/homebrew/bin/python3.10",
-    "/usr/local/bin/python3",
-    "/usr/bin/python3",
-    // PATH 命令：Windows 优先 python，macOS/Linux 优先 python3
-    ...(isWin ? ["python", "python3"] : ["python3", "python"]),
-  ];
-  // 先尝试绝对路径
+  const candidates = isWin
+    ? ["python", "python3", "py"]
+    : ["/opt/homebrew/bin/python3.11", "/opt/homebrew/bin/python3.12", "/opt/homebrew/bin/python3.10", "/usr/local/bin/python3", "/usr/bin/python3", "python3", "python"];
   for (const bin of candidates) {
-    if (path.isAbsolute(bin)) {
-      try { fs.accessSync(bin, fs.constants.X_OK); return bin; } catch {}
-    }
-  }
-  // PATH 命令：按优先级返回第一个
-  for (const bin of candidates) {
-    if (!path.isAbsolute(bin)) return bin;
+    if (path.isAbsolute(bin)) { try { fs.accessSync(bin, fs.constants.X_OK); return bin; } catch {} }
   }
   return isWin ? "python" : "python3";
 }
-const PYTHON_BIN = findPython();
-const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
 
-/**
- * 调用 Python 桥接脚本
- * @param {object} payload - 发送给 Python 的 JSON 请求
- * @param {number} [timeout=30000] - 超时（毫秒）
- * @returns {Promise<{ok: boolean, data?: any, error?: string}>}
- */
+const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
+const PYTHON_BIN = BUNDLED_BIN ? null : findPython();
+
 function callBridge(payload, timeout = 30000) {
   return new Promise((resolve) => {
-    // 优先使用打包的独立可执行文件
     const useBin = BUNDLED_BIN;
     const child = useBin
-      ? execFile(useBin, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, callback)
-      : execFile(PYTHON_BIN, [BRIDGE_SCRIPT, JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, callback);
-
-    function callback(err, stdout) {
-      if (err) {
-        if (err.killed) return resolve({ ok: false, error: "AKShare 请求超时" });
-        // 如果系统 Python 找不到且未使用打包二进制，尝试兜底查找
-        if (!useBin && (err.code === "ENOENT" || /Python was not found/i.test(err.message))) {
-          const fallback = findFallbackBinary();
-          if (fallback) {
-            execFile(fallback, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 }, (err2, stdout2) => {
-              if (err2) return resolve({ ok: false, error: `AKShare 调用失败: ${err2.message}` });
-              try { resolve(JSON.parse(stdout2.trim())); } catch { resolve({ ok: false, error: "AKShare 响应解析失败" }); }
-            });
-            return;
-          }
-        }
-        return resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
+      ? execFile(useBin, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 })
+      : execFile(PYTHON_BIN, [BRIDGE_SCRIPT, JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 });
+    let stdout = "";
+    child.stdout.on("data", (d) => { stdout += d.toString(); });
+    child.on("error", (err) => {
+      if (!useBin) findFallbackBinary(payload, resolve, err);
+      else resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
+    });
+    child.on("close", (code) => {
+      if (code !== 0 && !BUNDLED_BIN && (stdout.includes("Python was not found") || stdout.includes("No such file"))) {
+        findFallbackBinary(payload, resolve, new Error(stdout));
+        return;
       }
-      try {
-        const result = JSON.parse(stdout.trim());
-        resolve(result);
-      } catch {
-        resolve({ ok: false, error: `AKShare 响应解析失败: ${stdout.slice(0, 200)}` });
-      }
-    }
-
-    // 兜底：遍历已知位置查找 PyInstaller 编译产物
-    function findFallbackBinary() {
-      const ext = process.platform === "win32" ? ".exe" : "";
-      const dirs = [
-        __dirname,
-        path.join(__dirname, ".."),
-        process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : null,
-        process.resourcesPath ? path.join(process.resourcesPath, "server") : null,
-      ].filter(Boolean);
-      for (const dir of dirs) {
-        const candidate = path.join(dir, "akshare_bridge" + ext);
-        try { if (fs.existsSync(candidate)) return candidate; } catch {}
-      }
-      return null;
-    }
+      try { resolve(JSON.parse(stdout)); }
+      catch { resolve({ ok: false, error: `AKShare 解析失败: ${stdout.slice(0, 200)}` }); }
+    });
   });
 }
 
+function findFallbackBinary(payload, resolve, err) {
+  const ext = process.platform === "win32" ? ".exe" : "";
+  for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
+    if (!d) continue;
+    const bin = path.join(d, "akshare_bridge" + ext);
+    if (fs.existsSync(bin)) {
+      const child = execFile(bin, [JSON.stringify(payload)], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
+      let out = "";
+      child.stdout.on("data", d => out += d.toString());
+      child.on("close", () => { try { resolve(JSON.parse(out)); } catch { resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` }); } });
+      child.on("error", () => resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` }));
+      return;
+    }
+  }
+  resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
+}
+
 const akshare = {
-  /** 健康检查 */
-  async health() {
-    return callBridge({ action: "health" }, 10000);
-  },
-
-  /**
-   * 获取A股历史K线
-   * @param {string} symbol - 纯数字代码（如 "000001"）
-   * @param {object} options
-   * @param {string} [options.period="daily"] - daily/weekly/monthly
-   * @param {string} [options.startDate] - 开始日期 YYYYMMDD
-   * @param {string} [options.endDate] - 结束日期 YYYYMMDD
-   */
+  async health() { return callBridge({ action: "health" }, 10000); },
   async getStockKline(symbol, options = {}) {
-    const clean = String(symbol).replace(/^sh|sz|bj|hk|us/gi, "");
-    return callBridge({
-      action: "kline",
-      symbol: clean,
-      period: options.period || "daily",
-      start: options.startDate || undefined,
-      end: options.endDate || undefined,
-    });
+    return callBridge({ action: "kline", symbol, period: options.period || "daily", start: options.startDate, end: options.endDate }, 30000);
   },
-
-  /**
-   * 批量获取A股实时行情
-   * @param {string[]} symbols - 股票代码数组
-   */
-  async getMultiMarketQuotes(symbols) {
-    return callBridge({ action: "quote", symbols }, 20000);
-  },
-
-  /**
-   * 搜索股票
-   * @param {string} keyword - 搜索关键词
-   */
-  async searchStock(keyword) {
-    return callBridge({ action: "search", keyword }, 15000);
-  },
-
-  // ── 板块数据 ──
-
-  /** 获取行业板块列表 */
-  async getIndustries(topN) {
-    return callBridge({ action: "industries", topN }, 20000);
-  },
-
-  /** 获取概念板块列表 */
-  async getConcepts(topN) {
-    return callBridge({ action: "concepts", topN }, 20000);
-  },
-
-  /** 获取热门板块（行业+概念） */
-  async getHotSectors(topN) {
-    return callBridge({ action: "hotSectors", topN }, 20000);
-  },
-
-  /** 搜索板块 */
-  async searchSectors(keyword) {
-    return callBridge({ action: "searchSectors", keyword }, 15000);
-  },
-
-  /** 获取板块成分股 */
-  async getBoardStocks(symbol, boardType) {
-    return callBridge({ action: "boardStocks", symbol, boardType }, 20000);
-  },
-
-  /** 获取涨停板池 */
-  async getZTPool(ztType, date) {
-    return callBridge({ action: "ztPool", ztType, date }, 15000);
-  },
-
-  /** 获取个股资金流向排名 */
-  async getFundFlowRank(indicator) {
-    return callBridge({ action: "fundFlowRank", indicator }, 20000);
-  },
-
-  /** 获取板块资金流向排名 */
-  async getSectorFundFlowRank(indicator, sectorType) {
-    return callBridge({ action: "sectorFundFlowRank", indicator, sectorType }, 20000);
-  },
-
-  /** 随机获取一只A股的K线（训练用） */
-  async getRandomKline(count = 500) {
-    return callBridge({ action: "randomKline", count }, 30000);
-  },
+  async getMultiMarketQuotes(symbols) { return callBridge({ action: "quote", symbols }, 20000); },
+  async searchStock(keyword) { return callBridge({ action: "search", keyword }, 15000); },
+  async getIndustries(topN) { return callBridge({ action: "industries", topN }, 20000); },
+  async searchSectors(keyword) { return callBridge({ action: "searchSectors", keyword }, 15000); },
+  async getRandomKline(count = 500) { return callBridge({ action: "randomKline", count }, 30000); },
 };
-
 module.exports = akshare;

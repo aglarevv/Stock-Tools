@@ -273,11 +273,32 @@ def get_quotes(symbols):
     except Exception:
         pass
     return results
+
+
+def search_stock(keyword):
+    """搜索股票（通过 biyingapi 股票列表）"""
+    import urllib.request, json as _json, ssl
+    results = []
+    try:
+        url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=15, context=ctx)
+        data = _json.loads(resp.read().decode("utf-8"))
+        kw = keyword.lower().strip()
+        for item in data:
+            dm = item.get("dm", "")
+            mc = item.get("mc", "")
+            code_clean = dm.replace(".SH","").replace(".SZ","").replace(".BJ","")
+            if kw in mc.lower() or kw in code_clean.lower():
+                market = "sh" if ".SH" in dm else "sz" if ".SZ" in dm else "bj"
+                results.append({"code": code_clean, "name": mc, "category": "stock", "market": market})
+                if len(results) >= 20:
+                    break
+    except Exception:
+        pass
     return results
 
-# ═══════════════════════════════════════════════════════════════════
-# 板块数据
-# ═══════════════════════════════════════════════════════════════════
 
 def get_industries(top_n=None):
     """获取行业板块列表（仅使用 biyingapi）"""
@@ -308,25 +329,10 @@ def _fetch_biying_sectors(top_n=None, board_type="concept"):
         return []
 
 
-def get_concepts(top_n=None):
-    """获取概念板块列表（仅使用 biyingapi）"""
-    return _fetch_biying_sectors(top_n, "concept")
-
-
-def get_hot_sectors(top_n=10):
-    """获取热门板块（行业+概念涨幅前N）"""
-    industries = get_industries(top_n)
-    concepts = get_concepts(top_n)
-    return {
-        "industries": industries,
-        "concepts": concepts,
-    }
-
-
 def search_sectors(keyword):
     """搜索板块（行业+概念模糊匹配）"""
     results = []
-    for getter, btype in [(get_industries, "industry"), (get_concepts, "concept")]:
+    for getter, btype in [(get_industries, "industry")]:
         try:
             all_boards = getter()
             kw = keyword.lower().strip()
@@ -341,68 +347,9 @@ def search_sectors(keyword):
     return results
 
 
-def get_board_stocks(symbol, board_type="industry"):
-    """获取板块成分股（通过新浪 HTML 解析）"""
-    import urllib.request, re
-    try:
-        if board_type == "industry":
-            url = f"http://vip.stock.finance.sina.com.cn/q/go.php/vIndustryRank/kind/industry/symbol/{symbol}"
-        else:
-            url = f"http://vip.stock.finance.sina.com.cn/q/go.php/vIndustryRank/kind/concept/symbol/{symbol}"
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urllib.request.urlopen(req, timeout=10)
-        html = resp.read().decode("gbk", errors="ignore")
-        stocks = []
-        for m in re.finditer(r'<a[^>]*href="[^"]*quotes_search\.html\?st=[^"]*"[^>]*>([^<]+)</a>', html):
-            name = m.group(1).strip()
-            if name: stocks.append(name)
-        return [{"code": "", "name": n, "price": 0, "change": 0,
-                 "changePercent": 0, "volume": 0, "amount": 0,
-                 "turnoverRate": 0, "pe": None, "pb": None, "rank": i+1}
-                for i, n in enumerate(stocks[:50])]
-    except Exception:
-        return []
-
-
-def get_zt_pool(zt_type="zt", date=None):
-    """获取涨停板池（暂时不可用，等待biyingapi接入）"""
-    return []
-
-
-def search_stock(keyword):
-    """搜索股票（通过 biyingapi 股票列表）"""
-    import urllib.request, json as _json, ssl
-    results = []
-    try:
-        url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
-        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urllib.request.urlopen(req, timeout=15, context=ctx)
-        data = _json.loads(resp.read().decode("utf-8"))
-        kw = keyword.lower().strip()
-        for item in data:
-            dm = item.get("dm", "")
-            mc = item.get("mc", "")
-            code_clean = dm.replace(".SH","").replace(".SZ","").replace(".BJ","")
-            if kw in mc.lower() or kw in code_clean.lower():
-                market = "sh" if ".SH" in dm else "sz" if ".SZ" in dm else "bj"
-                results.append({"code": code_clean, "name": mc, "category": "stock", "market": market})
-                if len(results) >= 20:
-                    break
-    except Exception:
-        pass
-    return results
-
-
-def get_fund_flow_rank(indicator="today"):
-    """获取个股资金流向排名（暂时不可用）"""
-    return []
-
-
-def get_sector_fund_flow_rank(indicator="today", sector_type="industry"):
-    """获取板块资金流向排名（暂时不可用）"""
-    return []
-
+# ═══════════════════════════════════════════════════════════════════
+# 主入口
+# ═══════════════════════════════════════════════════════════════════
 
 def main():
     if len(sys.argv) > 1:
@@ -438,38 +385,9 @@ def main():
             data = get_industries(req.get("topN"))
             print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
 
-        elif action == "concepts":
-            data = get_concepts(req.get("topN"))
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
-        elif action == "hotSectors":
-            data = get_hot_sectors(req.get("topN", 10))
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
         elif action == "searchSectors":
             keyword = req.get("keyword", "")
             data = search_sectors(keyword)
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
-        elif action == "boardStocks":
-            symbol = req.get("symbol", "")
-            board_type = req.get("boardType", "industry")
-            data = get_board_stocks(symbol, board_type)
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
-        elif action == "ztPool":
-            data = get_zt_pool(req.get("ztType", "zt"), req.get("date"))
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
-        elif action == "fundFlowRank":
-            data = get_fund_flow_rank(req.get("indicator", "today"))
-            print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
-
-        elif action == "sectorFundFlowRank":
-            data = get_sector_fund_flow_rank(
-                req.get("indicator", "today"),
-                req.get("sectorType", "industry"),
-            )
             print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
 
         elif action == "health":

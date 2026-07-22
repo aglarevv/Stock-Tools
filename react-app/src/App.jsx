@@ -12,7 +12,6 @@ import { ApiProvider } from "./hooks/useApi.jsx";
 import Sidebar from "./components/Sidebar.jsx";
 import TitleBar from "./components/TitleBar.jsx";
 import Dashboard from "./components/Dashboard.jsx";
-import StockSearch from "./components/StockSearch.jsx";
 import TradePlan from "./components/TradePlan.jsx";
 import TradePlanList from "./components/TradePlanList.jsx";
 import ReviewList from "./components/ReviewList.jsx";
@@ -27,7 +26,6 @@ import Settings from "./components/Settings.jsx";
 
 const PAGES = {
   "dashboard": Dashboard,
-  "stock-search": StockSearch,
   calculator: TradePlan,
   "plan-list": TradePlanList,
   "review-list": ReviewList,
