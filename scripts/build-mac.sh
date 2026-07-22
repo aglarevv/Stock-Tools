@@ -97,7 +97,7 @@ BUILD_DIR="$ROOT_DIR/src/server/services"
   cd "$BUILD_DIR" || exit 1
   python3 -m venv venv_build
   source venv_build/bin/activate
-  pip install pyinstaller akshare --quiet
+  pip install pyinstaller akshare baostock --quiet
   AKDIR=$(python3 -c "import akshare, os; print(os.path.dirname(akshare.__file__))")
   echo "AKShare data dir: $AKDIR/file_fold"
   pyinstaller --onefile --name akshare_bridge --distpath "$SERVER_RESOURCES_DIR" \

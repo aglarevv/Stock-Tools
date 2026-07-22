@@ -185,8 +185,54 @@ def get_embedded_kline():
     }
 
 
+def _fetch_baostock(symbol, start_date, end_date):
+    """通过 baostock 获取A股历史K线，返回标准 DataFrame"""
+    import baostock as bs
+    import pandas as _pd
+    import os, sys
+    # baostock 要求 YYYY-MM-DD 格式
+    sd = f"{start_date[:4]}-{start_date[4:6]}-{start_date[6:8]}" if len(start_date) == 8 else start_date
+    ed = f"{end_date[:4]}-{end_date[4:6]}-{end_date[6:8]}" if len(end_date) == 8 else end_date
+    prefix = "sh" if symbol.startswith(("6", "9")) else "sz"
+    full_code = f"{prefix}.{symbol}"
+    # 抑制 baostock 的 stdout 输出（login/logout 日志污染 JSON）
+    old_stdout = sys.stdout
+    sys.stdout = open(os.devnull, 'w')
+    lg = bs.login()
+    sys.stdout.close()
+    sys.stdout = old_stdout
+    if lg.error_code != "0":
+        return None
+    try:
+        sys.stdout = open(os.devnull, 'w')
+        rs = bs.query_history_k_data_plus(
+            full_code,
+            "date,open,high,low,close,volume",
+            start_date=sd, end_date=ed,
+            frequency="d", adjustflag="2")
+        if rs.error_code != "0":
+            return None
+        rows = []
+        while rs.next():
+            row = rs.get_row_data()
+            if row[0]: rows.append(row)
+        if not rows:
+            return None
+        df = _pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume"])
+        for col in ["open", "high", "low", "close", "volume"]:
+            df[col] = _pd.to_numeric(df[col])
+        df.rename(columns={"date": "日期", "open": "开盘", "high": "最高",
+                           "low": "最低", "close": "收盘", "volume": "成交量"}, inplace=True)
+        return df
+    finally:
+        sys.stdout = open(os.devnull, 'w')
+        bs.logout()
+        sys.stdout.close()
+        sys.stdout = old_stdout
+
+
 def get_kline(symbol, period, start, end, sina_symbol=None, kline_count=500):
-    """获取A股历史K线（多源降级：新浪 → 东方财富）"""
+    """获取A股历史K线（多源降级：baostock → 新浪 → 东方财富）"""
     period_map = {"daily": "daily", "weekly": "weekly", "monthly": "monthly"}
     p = period_map.get(period, "daily")
 
@@ -195,8 +241,10 @@ def get_kline(symbol, period, start, end, sina_symbol=None, kline_count=500):
         import datetime
         today = datetime.date.today()
         start = (today - datetime.timedelta(days=int(kline_count * 1.5))).strftime("%Y%m%d")
+        end = today.strftime("%Y%m%d")
 
     df, err = try_sources(
+        ("baostock", lambda: _fetch_baostock(symbol, start, end)),
         ("新浪", lambda: ak.stock_zh_a_daily(
             symbol=sina_symbol or (f"sh{symbol}" if symbol.startswith(("6", "9")) else f"sz{symbol}"),
             adjust="qfq")),

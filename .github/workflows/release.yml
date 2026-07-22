@@ -37,7 +37,7 @@ jobs:
           cd src/server/services
           python3 -m venv venv_build
           source venv_build/bin/activate
-          pip install pyinstaller akshare --quiet
+          pip install pyinstaller akshare baostock --quiet
           AKDIR=$(python3 -c "import akshare, os; print(os.path.dirname(akshare.__file__))")
           echo "AKShare data: $AKDIR/file_fold"
           pyinstaller --onefile --name akshare_bridge --distpath . \
@@ -101,7 +101,7 @@ jobs:
           cd src/server/services
           python -m venv venv_build
           venv_build\Scripts\activate
-          pip install pyinstaller akshare --quiet
+          pip install pyinstaller akshare baostock --quiet
           $akdir = python -c "import akshare, os; print(os.path.dirname(akshare.__file__))"
           Write-Host "AKShare data: $akdir\file_fold"
           pyinstaller --onefile --name akshare_bridge --distpath . `
