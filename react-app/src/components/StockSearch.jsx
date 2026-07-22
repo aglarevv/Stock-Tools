@@ -1,10 +1,12 @@
 import { useState, useCallback } from "react";
+import { useApi } from "../hooks/useApi.jsx";
 import Icon from "./Icon.jsx";
 
 const fmt = (v, d = 2) => v != null && isFinite(v) ? Number(v).toFixed(d) : "--";
 const cnMarket = (c) => !c ? "" : c.includes("sh") ? "沪" : c.includes("sz") ? "深" : c.includes("bj") ? "北" : c.includes("hk") ? "港" : c.includes("us") ? "美" : "";
 
-export default function StockSearch({ api, showToast }) {
+export default function StockSearch({ navigate, showToast }) {
+  const api = useApi();
   const [kw, setKw] = useState("");
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -76,17 +78,18 @@ export default function StockSearch({ api, showToast }) {
       </div>
 
       <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        <input
-          className="input"
-          placeholder="输入股票代码/名称/拼音…"
-          value={kw}
-          onChange={(e) => setKw(e.target.value)}
-          style={{ flex: 1 }}
-        />
-        <button className="btn btn-primary" type="submit" disabled={loading}>
-          {loading ? "搜索中…" : "搜索"}
-        </button>
-      </form>
+          <input
+            className="input"
+            placeholder="输入股票代码/名称/拼音…"
+            value={kw}
+            onChange={(e) => setKw(e.target.value)}
+            style={{ flex: 1, fontSize: 15, padding: "10px 12px" }}
+          />
+          <button className="btn btn-primary" type="submit" disabled={loading}
+            style={{ fontSize: 14, padding: "8px 20px" }}>
+            {loading ? "搜索中…" : <><Icon name="search" size={14} style={{ verticalAlign: -1, marginRight: 4 }} />搜索</>}
+          </button>
+        </form>
 
       {/* 搜索结果 */}
       {results && !detail && (
