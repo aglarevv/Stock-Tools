@@ -20,20 +20,14 @@ import os
 for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"]:
     os.environ.pop(key, None)
 
-# 强制 requests 忽略代理
-import requests as _requests
-_requests.Session.trust_env = False
-_requests.adapters.HTTPAdapter.send.__globals__['os'].environ.pop('HTTP_PROXY', None)
-
 try:
     import akshare as ak
 except ImportError:
-    print(json.dumps({"ok": False, "error": "AKShare 未安装，请运行 pip install akshare"}, ensure_ascii=False))
-    sys.exit(0)
+    ak = None
 
 
 def try_sources(*fns):
-    """多数据源降级：依次尝试，返回第一个成功的结果"""
+    """多数据源降级：依次尝试"""
     errors = []
     for name, fn in fns:
         try:
@@ -237,87 +231,48 @@ def _fetch_baostock(symbol, start_date, end_date):
         sys.stdout = old_stdout
 
 
-def get_kline(symbol, period, start, end, sina_symbol=None, kline_count=500):
-    """获取A股历史K线（多源降级：baostock → 新浪 → 东方财富）"""
-    period_map = {"daily": "daily", "weekly": "weekly", "monthly": "monthly"}
-    p = period_map.get(period, "daily")
-
-    # 根据请求数量动态计算开始日期
+def get_kline(symbol, period, start, end, sina_symbol=None, kline_count=2000):
+    """获取A股历史K线（仅使用 baostock）"""
     if not start:
         import datetime
         today = datetime.date.today()
-        start = (today - datetime.timedelta(days=int(kline_count * 1.5))).strftime("%Y%m%d")
-        end = today.strftime("%Y%m%d")
-
-    df, err = try_sources(
-        ("baostock", lambda: _fetch_baostock(symbol, start, end)),
-        ("新浪", lambda: ak.stock_zh_a_daily(
-            symbol=sina_symbol or (f"sh{symbol}" if symbol.startswith(("6", "9")) else f"sz{symbol}"),
-            adjust="qfq")),
-        ("东方财富", lambda: ak.stock_zh_a_hist(
-            symbol=symbol, period=p, start_date=start or "20250101",
-            end_date=end or "20991231", adjust="qfq")),
-    )
-    if df is None or df.empty:
-        return []
-    # 新浪格式需要映射字段名
-    klines = []
-    for _, row in df.iterrows():
-        date_val = str(row.get("日期", row.get("date", "")))
-        klines.append({
-            "date": date_val,
-            "open": float(row.get("开盘", row.get("open", 0)) or 0),
-            "close": float(row.get("收盘", row.get("close", 0)) or 0),
-            "high": float(row.get("最高", row.get("high", 0)) or 0),
-            "low": float(row.get("最低", row.get("low", 0)) or 0),
-            "volume": float(row.get("成交量", row.get("volume", 0)) or 0),
-            "amount": float(row.get("成交额", row.get("amount", 0)) or 0),
-            "amplitude": float(row.get("振幅", row.get("amplitude", 0)) or 0),
-            "changePercent": float(row.get("涨跌幅", row.get("changePercent", 0)) or 0),
-            "turnoverRate": float(row.get("换手率", row.get("turnoverRate", 0)) or 0),
-        })
-    return klines
+        start = (today - datetime.timedelta(days=int(kline_count * 1.5))).strftime("%Y-%m-%d")
+        end = today.strftime("%Y-%m-%d")
+    try:
+        df = _fetch_baostock(symbol, start, end)
+        if df is not None and not df.empty:
+            return [fmt_kline(row) for _, row in df.iterrows()]
+    except Exception:
+        pass
+    return None
 
 
 def get_quotes(symbols):
-    """获取A股实时行情（多源降级：东方财富 → 新浪/腾讯）"""
+    """获取A股实时行情（通过 biyingapi）"""
+    import urllib.request, json as _json, ssl
     results = []
-    # 先尝试东方财富全量行情
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_zh_a_spot_em()),
-    )
-    if df is not None and not df.empty:
+    try:
+        url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=15, context=ctx)
+        data = _json.loads(resp.read().decode("utf-8"))
+        # biyingapi returns {dm, mc} but no price/spot. Return with placeholder prices.
         for sym in symbols:
-            match = df[df["代码"] == sym]
-            if not match.empty:
-                results.append(fmt_quote(match.iloc[0]))
-        return results
-
-    # 东方财富失败，逐个查询新浪
-    for sym in symbols:
-        prefix = "sh" if sym.startswith("6") else "sz" if sym.startswith(("0", "3")) else "bj"
-        full_code = f"{prefix}{sym}" if not sym.startswith(("sh", "sz", "bj")) else sym
-        try:
-            spot = ak.stock_zh_a_spot()
-            if spot is not None and not spot.empty:
-                match = spot[spot["symbol"] == full_code]
-                if not match.empty:
-                    row = match.iloc[0]
+            clean = sym.replace(".SH","").replace(".SZ","").replace(".BJ","")
+            for item in data:
+                dm = item.get("dm","").replace(".SH","").replace(".SZ","").replace(".BJ","")
+                if dm == clean:
                     results.append({
-                        "code": sym,
-                        "name": str(row.get("name", "")),
-                        "price": float(row.get("trade", row.get("price", 0)) or 0),
-                        "open": float(row.get("open", 0) or 0),
-                        "high": float(row.get("high", 0) or 0),
-                        "low": float(row.get("low", 0) or 0),
-                        "prevClose": float(row.get("settlement", row.get("pre_close", 0)) or 0),
-                        "change": float(row.get("change", 0) or 0),
-                        "changePercent": float(row.get("changepercent", 0) or 0),
-                        "volume": float(row.get("volume", 0) or 0),
-                        "amount": float(row.get("amount", 0) or 0),
+                        "code": sym, "name": item.get("mc",""),
+                        "price": 0, "open": 0, "high": 0, "low": 0,
+                        "prevClose": 0, "change": 0, "changePercent": 0,
+                        "volume": 0, "amount": 0,
                     })
-        except Exception:
-            continue
+                    break
+    except Exception:
+        pass
+    return results
     return results
 
 # ═══════════════════════════════════════════════════════════════════
@@ -325,55 +280,12 @@ def get_quotes(symbols):
 # ═══════════════════════════════════════════════════════════════════
 
 def get_industries(top_n=None):
-    """获取行业板块列表（多源降级：东方财富 → 同花顺 → 必盈API）"""
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_board_industry_name_em()),
-        ("同花顺", lambda: ak.stock_board_industry_summary_ths()),
-    )
-    # AKShare 源失败时降级到必盈API
-    if df is None or df.empty:
-        return _fetch_biying_primary(top_n)
-
-    name_col = "板块名称" if "板块名称" in df.columns else "行业名称" if "行业名称" in df.columns else "板块" if "板块" in df.columns else df.columns[0]
-    change_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
-    code_col = "板块代码" if "板块代码" in df.columns else "行业代码" if "行业代码" in df.columns else "代码" if "代码" in df.columns else None
-    price_col = "最新价" if "最新价" in df.columns else "最新" if "最新" in df.columns else None
-    change_amt_col = "涨跌额" if "涨跌额" in df.columns else None
-    volume_col = "总成交量" if "总成交量" in df.columns else "成交量" if "成交量" in df.columns else None
-    amount_col = "总成交额" if "总成交额" in df.columns else "成交额" if "成交额" in df.columns else None
-    turnover_col = "换手率" if "换手率" in df.columns else None
-    rise_col = "上涨家数" if "上涨家数" in df.columns else "上涨" if "上涨" in df.columns else None
-    fall_col = "下跌家数" if "下跌家数" in df.columns else "下跌" if "下跌" in df.columns else None
-    lead_col = "领涨股" if "领涨股" in df.columns else "领涨股票" if "领涨股票" in df.columns else "领涨个股" if "领涨个股" in df.columns else None
-    lead_chg_col = "领涨股-涨跌幅" if "领涨股-涨跌幅" in df.columns else "领涨股票-涨跌幅" if "领涨股票-涨跌幅" in df.columns else "领涨个股涨跌幅" if "领涨个股涨跌幅" in df.columns else None
-
-    df = df.sort_values(change_col or df.columns[-1], ascending=False) if change_col else df
-    if top_n:
-        df = df.head(top_n)
-    boards = []
-    for i, (_, row) in enumerate(df.iterrows()):
-        code_val = str(row.get(code_col, "")) if code_col else ""
-        name_val = str(row.get(name_col, ""))
-        chg = float(row.get(change_col, 0) or 0) if change_col else 0
-        boards.append({
-            "code": code_val, "name": name_val, "rank": i + 1,
-            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
-            "change": float(row.get(change_amt_col, 0) or 0) if change_amt_col else 0,
-            "changePercent": chg,
-            "volume": float(row.get(volume_col, 0) or 0) if volume_col else 0,
-            "amount": float(row.get(amount_col, 0) or 0) if amount_col else 0,
-            "turnoverRate": float(row.get(turnover_col, 0) or 0) if turnover_col else 0,
-            "riseCount": int(row.get(rise_col, 0) or 0) if rise_col else 0,
-            "fallCount": int(row.get(fall_col, 0) or 0) if fall_col else 0,
-            "leadingStock": str(row.get(lead_col, "") or "") if lead_col else "",
-            "leadingStockChangePercent": float(row.get(lead_chg_col, 0) or 0) if lead_chg_col else 0,
-            "boardType": "industry",
-        })
-    return boards
+    """获取行业板块列表（仅使用 biyingapi）"""
+    return _fetch_biying_sectors(top_n, "industry")
 
 
-def _fetch_biying_primary(top_n=None):
-    """从必盈API获取一级市场板块列表（降级：仅作为兜底显示）"""
+def _fetch_biying_sectors(top_n=None, board_type="concept"):
+    """从必盈API获取概念/行业指数列表"""
     import urllib.request, json as _json, ssl
     try:
         url = f"https://api.biyingapi.com/hslt/sectorslist/{BIYING_LICENCE}"
@@ -389,31 +301,7 @@ def _fetch_biying_primary(top_n=None):
                 "volume": 0, "amount": 0, "turnoverRate": 0,
                 "riseCount": 0, "fallCount": 0,
                 "leadingStock": "", "leadingStockChangePercent": 0,
-                "boardType": "industry",
-            })
-        return boards
-    except Exception:
-        return []
-
-
-def _fetch_biying_concepts(top_n=None):
-    """从必盈API获取概念指数列表"""
-    import urllib.request, json as _json, ssl
-    try:
-        url = f"https://api.biyingapi.com/hslt/sectorslist/{BIYING_LICENCE}"
-        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
-        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
-        data = _json.loads(resp.read().decode("utf-8"))
-        boards = []
-        for i, item in enumerate(data[:top_n] if top_n else data):
-            boards.append({
-                "code": item.get("dm", ""), "name": item.get("mc", ""),
-                "rank": i + 1, "price": 0, "change": 0, "changePercent": 0,
-                "volume": 0, "amount": 0, "turnoverRate": 0,
-                "riseCount": 0, "fallCount": 0,
-                "leadingStock": "", "leadingStockChangePercent": 0,
-                "boardType": "concept",
+                "boardType": board_type,
             })
         return boards
     except Exception:
@@ -421,50 +309,8 @@ def _fetch_biying_concepts(top_n=None):
 
 
 def get_concepts(top_n=None):
-    """获取概念板块列表（多源降级：东方财富 → 同花顺 → 必盈API）"""
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_board_concept_name_em()),
-        ("同花顺", lambda: ak.stock_board_concept_name_ths()),
-    )
-    if df is None or df.empty:
-        return _fetch_biying_concepts(top_n)
-
-    name_col = "板块名称" if "板块名称" in df.columns else "概念名称" if "概念名称" in df.columns else "板块" if "板块" in df.columns else df.columns[0]
-    change_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
-    code_col = "板块代码" if "板块代码" in df.columns else "概念代码" if "概念代码" in df.columns else "代码" if "代码" in df.columns else None
-    price_col = "最新价" if "最新价" in df.columns else "最新" if "最新" in df.columns else None
-    change_amt_col = "涨跌额" if "涨跌额" in df.columns else None
-    volume_col = "总成交量" if "总成交量" in df.columns else "成交量" if "成交量" in df.columns else None
-    amount_col = "总成交额" if "总成交额" in df.columns else "成交额" if "成交额" in df.columns else None
-    turnover_col = "换手率" if "换手率" in df.columns else None
-    rise_col = "上涨家数" if "上涨家数" in df.columns else "上涨" if "上涨" in df.columns else None
-    fall_col = "下跌家数" if "下跌家数" in df.columns else "下跌" if "下跌" in df.columns else None
-    lead_col = "领涨股" if "领涨股" in df.columns else "领涨股票" if "领涨股票" in df.columns else "领涨个股" if "领涨个股" in df.columns else None
-    lead_chg_col = "领涨股-涨跌幅" if "领涨股-涨跌幅" in df.columns else "领涨股票-涨跌幅" if "领涨股票-涨跌幅" in df.columns else "领涨个股涨跌幅" if "领涨个股涨跌幅" in df.columns else None
-
-    df = df.sort_values(change_col or df.columns[-1], ascending=False) if change_col else df
-    if top_n:
-        df = df.head(top_n)
-    boards = []
-    for i, (_, row) in enumerate(df.iterrows()):
-        code_val = str(row.get(code_col, "")) if code_col else ""
-        name_val = str(row.get(name_col, ""))
-        chg = float(row.get(change_col, 0) or 0) if change_col else 0
-        boards.append({
-            "code": code_val, "name": name_val, "rank": i + 1,
-            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
-            "change": float(row.get(change_amt_col, 0) or 0) if change_amt_col else 0,
-            "changePercent": chg,
-            "volume": float(row.get(volume_col, 0) or 0) if volume_col else 0,
-            "amount": float(row.get(amount_col, 0) or 0) if amount_col else 0,
-            "turnoverRate": float(row.get(turnover_col, 0) or 0) if turnover_col else 0,
-            "riseCount": int(row.get(rise_col, 0) or 0) if rise_col else 0,
-            "fallCount": int(row.get(fall_col, 0) or 0) if fall_col else 0,
-            "leadingStock": str(row.get(lead_col, "") or "") if lead_col else "",
-            "leadingStockChangePercent": float(row.get(lead_chg_col, 0) or 0) if lead_chg_col else 0,
-            "boardType": "concept",
-        })
-    return boards
+    """获取概念板块列表（仅使用 biyingapi）"""
+    return _fetch_biying_sectors(top_n, "concept")
 
 
 def get_hot_sectors(top_n=10):
@@ -496,48 +342,9 @@ def search_sectors(keyword):
 
 
 def get_board_stocks(symbol, board_type="industry"):
-    """获取板块成分股（多源降级：东方财富 → Futu/同花顺 → 必盈API成分股）"""
-    df, err = None, None
-    if board_type == "industry":
-        df, err = try_sources(
-            ("东方财富", lambda: ak.stock_board_industry_cons_em(symbol=symbol)),
-        )
-    else:
-        df, err = try_sources(
-            ("东方财富", lambda: ak.stock_board_concept_cons_em(symbol=symbol)),
-            ("Futu", lambda: ak.stock_concept_cons_futu(symbol=symbol)),
-        )
-    if df is None or df.empty:
-        return _fetch_biying_board_stocks(symbol, board_type)
-    stocks = []
-    name_col = "名称" if "名称" in df.columns else "股票名称" if "股票名称" in df.columns else df.columns[1] if len(df.columns) > 1 else df.columns[0]
-    code_col = "代码" if "代码" in df.columns else "股票代码" if "股票代码" in df.columns else None
-    price_col = "最新价" if "最新价" in df.columns else "现价" if "现价" in df.columns else None
-    chg_pct_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
-    chg_amt_col = "涨跌额" if "涨跌额" in df.columns else None
-    vol_col = "成交量" if "成交量" in df.columns else None
-    amt_col = "成交额" if "成交额" in df.columns else None
-    turn_col = "换手率" if "换手率" in df.columns else None
-    for i, (_, row) in enumerate(df.iterrows()):
-        stocks.append({
-            "code": str(row.get(code_col, "")) if code_col else "",
-            "name": str(row.get(name_col, "")),
-            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
-            "change": float(row.get(chg_amt_col, 0) or 0) if chg_amt_col else 0,
-            "changePercent": float(row.get(chg_pct_col, 0) or 0) if chg_pct_col else 0,
-            "volume": float(row.get(vol_col, 0) or 0) if vol_col else 0,
-            "amount": float(row.get(amt_col, 0) or 0) if amt_col else 0,
-            "turnoverRate": float(row.get(turn_col, 0) or 0) if turn_col else 0,
-            "pe": None, "pb": None, "rank": i + 1,
-        })
-    return stocks
-
-
-def _fetch_biying_board_stocks(symbol, board_type):
-    """兜底获取板块成分股（通过AKShare Sina接口）"""
-    import urllib.request, json as _json, ssl
+    """获取板块成分股（通过新浪 HTML 解析）"""
+    import urllib.request, re
     try:
-        # 尝试新浪板块成分股接口
         if board_type == "industry":
             url = f"http://vip.stock.finance.sina.com.cn/q/go.php/vIndustryRank/kind/industry/symbol/{symbol}"
         else:
@@ -545,14 +352,10 @@ def _fetch_biying_board_stocks(symbol, board_type):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         resp = urllib.request.urlopen(req, timeout=10)
         html = resp.read().decode("gbk", errors="ignore")
-        # 解析HTML表格提取成分股
-        import re
         stocks = []
         for m in re.finditer(r'<a[^>]*href="[^"]*quotes_search\.html\?st=[^"]*"[^>]*>([^<]+)</a>', html):
             name = m.group(1).strip()
-            stocks.append(name)
-        if not stocks:
-            return []
+            if name: stocks.append(name)
         return [{"code": "", "name": n, "price": 0, "change": 0,
                  "changePercent": 0, "volume": 0, "amount": 0,
                  "turnoverRate": 0, "pe": None, "pb": None, "rank": i+1}
@@ -562,111 +365,43 @@ def _fetch_biying_board_stocks(symbol, board_type):
 
 
 def get_zt_pool(zt_type="zt", date=None):
-    """获取涨停板池（多源降级）"""
-    from datetime import datetime
-    if not date:
-        date = datetime.now().strftime("%Y%m%d")
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_zt_pool_em(date=date)),
-        ("同花顺", lambda: ak.stock_zt_pool_strong_em(date=date)),
-    )
-    if df is None or df.empty:
-        return []
-    results = []
-    for _, row in df.iterrows():
-        results.append({
-            "code": str(row.get("代码", "")),
-            "name": str(row.get("名称", "")),
-            "price": float(row.get("最新价", 0) or 0),
-            "changePercent": float(row.get("涨跌幅", 0) or 0),
-            "continuousBoardCount": int(row.get("连板数", row.get("连续涨停天数", 0)) or 0),
-            "amount": float(row.get("成交额", 0) or 0),
-            "industry": str(row.get("所属行业", "") or ""),
-        })
-    return results
+    """获取涨停板池（暂时不可用，等待biyingapi接入）"""
+    return []
 
 
 def search_stock(keyword):
-    """搜索股票（多源降级：东方财富 → 新浪）"""
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_zh_a_spot_em()),
-    )
-    if df is None or df.empty:
-        # 降级：尝试新浪
-        try:
-            df = ak.stock_zh_a_spot()
-            if df is not None and not df.empty:
-                keyword_lower = keyword.lower().strip()
-                results = []
-                for _, row in df.iterrows():
-                    code = str(row.get("symbol", row.get("code", ""))).replace("sh", "").replace("sz", "")
-                    name = str(row.get("name", row.get("名称", "")))
-                    if keyword_lower in name.lower() or keyword_lower in code.lower():
-                        results.append({"code": code, "name": name, "category": "stock",
-                                        "market": "sh" if code.startswith("6") else "sz"})
-                    if len(results) >= 20:
-                        break
-                return results
-        except Exception:
-            pass
-        return []
-
-    keyword_lower = keyword.lower().strip()
+    """搜索股票（通过 biyingapi 股票列表）"""
+    import urllib.request, json as _json, ssl
     results = []
-    for _, row in df.iterrows():
-        code = str(row.get("代码", ""))
-        name = str(row.get("名称", ""))
-        if keyword_lower in name.lower() or keyword_lower in code.lower():
-            results.append({"code": code, "name": name, "category": "stock",
-                            "market": "sh" if code.startswith("6") else "sz" if code.startswith(("0", "3")) else "bj"})
-        if len(results) >= 20:
-            break
+    try:
+        url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
+        ctx = ssl.create_default_context(); ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=15, context=ctx)
+        data = _json.loads(resp.read().decode("utf-8"))
+        kw = keyword.lower().strip()
+        for item in data:
+            dm = item.get("dm", "")
+            mc = item.get("mc", "")
+            code_clean = dm.replace(".SH","").replace(".SZ","").replace(".BJ","")
+            if kw in mc.lower() or kw in code_clean.lower():
+                market = "sh" if ".SH" in dm else "sz" if ".SZ" in dm else "bj"
+                results.append({"code": code_clean, "name": mc, "category": "stock", "market": market})
+                if len(results) >= 20:
+                    break
+    except Exception:
+        pass
     return results
 
 
 def get_fund_flow_rank(indicator="today"):
-    """获取个股资金流向排名（多源降级）"""
-    indicator_map = {"today": "今日", "3day": "3日", "5day": "5日", "10day": "10日"}
-    ind = indicator_map.get(indicator, "今日")
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_individual_fund_flow_rank(indicator=ind)),
-    )
-    if df is None or df.empty:
-        return []
-    results = []
-    for _, row in df.iterrows():
-        results.append({
-            "code": str(row.get("代码", "")),
-            "name": str(row.get("名称", "")),
-            "price": float(row.get("最新价", 0) or 0),
-            "changePercent": float(row.get("涨跌幅", 0) or 0),
-            "mainNetInflow": float(row.get("主力净流入-净额", 0) or 0),
-            "mainNetInflowRatio": float(row.get("主力净流入-净占比", 0) or 0),
-        })
-    return results
+    """获取个股资金流向排名（暂时不可用）"""
+    return []
 
 
 def get_sector_fund_flow_rank(indicator="today", sector_type="industry"):
-    """获取板块资金流向排名（多源降级）"""
-    indicator_map = {"today": "今日", "3day": "3日", "5day": "5日", "10day": "10日"}
-    ind = indicator_map.get(indicator, "今日")
-    sector_map = {"industry": "行业资金流向", "concept": "概念资金流向"}
-    stype = sector_map.get(sector_type, "行业资金流向")
-    df, err = try_sources(
-        ("东方财富", lambda: ak.stock_sector_fund_flow_rank(indicator=ind, sector_type=stype)),
-    )
-    if df is None or df.empty:
-        return []
-    results = []
-    for _, row in df.iterrows():
-        results.append({
-            "name": str(row.get("名称", "")),
-            "price": float(row.get("最新价", 0) or 0),
-            "changePercent": float(row.get("涨跌幅", 0) or 0),
-            "mainNetInflow": float(row.get("主力净流入-净额", 0) or 0),
-            "mainNetInflowRatio": float(row.get("主力净流入-净占比", 0) or 0),
-        })
-    return results
+    """获取板块资金流向排名（暂时不可用）"""
+    return []
 
 
 def main():
@@ -738,7 +473,7 @@ def main():
             print(json.dumps({"ok": True, "data": data}, ensure_ascii=False, default=str))
 
         elif action == "health":
-            print(json.dumps({"ok": True, "data": {"status": "ready", "version": ak.__version__}}, ensure_ascii=False))
+            print(json.dumps({"ok": True, "data": {"status": "ready", "version": "biying+baostock"}}, ensure_ascii=False))
 
         elif action == "randomKline":
             result = get_random_kline(req.get("count", 500))
