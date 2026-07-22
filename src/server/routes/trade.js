@@ -268,15 +268,26 @@ async function handleTradeRoutes(request, response, url, ctx) {
         `SELECT id, symbol, DATE_FORMAT(review_date, '%Y-%m-%d') AS reviewDate,
           pnl_amount AS pnlAmount, pnl_rate AS pnlRate,
           index_judgment AS indexJudgment,
-          volume_judgment AS volumeJudgment,
-          sentiment_judgment AS sentimentJudgment,
-          leading_sectors AS leadingSectors,
-          buy_signal AS buySignal,
-          sell_signal AS sellSignal,
-          improvement_plan AS improvementPlan,
-          market_plan AS marketPlan
-        FROM daily_reviews ORDER BY review_date DESC, id DESC LIMIT 5`,
+          review_type AS reviewType
+        FROM daily_reviews ORDER BY review_date DESC LIMIT 5`
       );
+
+      // K线训练统计
+      const [[trainStats]] = await db.query(
+        `SELECT
+          COALESCE(COUNT(*), 0) AS totalSessions,
+          COALESCE(SUM(trades_count), 0) AS totalTrades,
+          COALESCE(SUM(win_count), 0) AS totalWins,
+          COALESCE(SUM(CASE WHEN total_pnl > 0 THEN 1 ELSE 0 END), 0) AS profitableSessions,
+          COALESCE(SUM(CASE WHEN total_pnl < 0 THEN 1 ELSE 0 END), 0) AS losingSessions
+        FROM kline_train_sessions`
+      );
+      const totalTrades = Number(trainStats?.totalTrades || 0);
+      const totalWins = Number(trainStats?.totalWins || 0);
+      const sessionCount = Number(trainStats?.totalSessions || 0);
+      const winRate = totalTrades > 0 ? (totalWins / totalTrades * 100) : 0;
+      const trainLossCount = totalTrades - totalWins;
+      const profitLossRatio = trainLossCount > 0 ? (totalWins / trainLossCount) : (totalWins > 0 ? 999 : 0);
 
       const [recentPlans] = await db.query(
         `SELECT symbol, buy_price AS buyPrice, take_profit_price AS takeProfitPrice,
@@ -301,6 +312,11 @@ async function handleTradeRoutes(request, response, url, ctx) {
         positionMarketValue: Number(posSummary?.totalMarketValue || 0),
         recentReviews,
         recentPlans,
+        // K线训练统计
+        trainSessions: sessionCount,
+        trainTotalTrades: totalTrades,
+        trainWinRate: Math.round(winRate * 10) / 10,
+        trainProfitLossRatio: Math.round(profitLossRatio * 100) / 100,
       });
     } catch (error) {
       sendError(response, 500, `看板数据获取失败：${error.message}`);

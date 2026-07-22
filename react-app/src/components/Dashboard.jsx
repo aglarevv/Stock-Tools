@@ -65,6 +65,30 @@ export default function Dashboard({ navigate, showToast }) {
         </div>
       </div>
 
+      <h2 style={{ margin: "24px 0 12px", fontSize: 15 }}><Icon name="candlestick" size={18} style={{ verticalAlign: -3, marginRight: 6 }} />K线训练</h2>
+      <div className="metrics-row">
+        <div className="metric-card metric-base" onClick={() => navigate("kline-train")}>
+          <div className="metric-label">训练局数</div>
+          <div className="metric-value">{data.trainSessions || 0}</div>
+          <div className="metric-desc">完成训练的局数 · 点击前往</div>
+        </div>
+        <div className="metric-card metric-info" onClick={() => navigate("kline-train")}>
+          <div className="metric-label">总开平仓</div>
+          <div className="metric-value">{data.trainTotalTrades || 0}</div>
+          <div className="metric-desc">所有交易的买卖次数</div>
+        </div>
+        <div className={`metric-card ${data.trainWinRate >= 50 ? "metric-profit" : "metric-loss"}`} onClick={() => navigate("kline-train")}>
+          <div className="metric-label">胜率</div>
+          <div className="metric-value">{data.trainWinRate ?? 0}%</div>
+          <div className="metric-desc">收益为正的交易占比</div>
+        </div>
+        <div className={`metric-card ${data.trainProfitLossRatio >= 1 ? "metric-profit" : "metric-loss"}`} onClick={() => navigate("kline-train")}>
+          <div className="metric-label">盈亏比</div>
+          <div className="metric-value">{data.trainProfitLossRatio ?? 0}</div>
+          <div className="metric-desc">盈利次数 / 亏损次数</div>
+        </div>
+      </div>
+
       <div className="content-grid">
         <div className="card">
           <div className="card-header"><h2>最近复盘摘要</h2><span className="card-hint">{latest?.reviewDate}</span></div>
