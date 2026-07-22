@@ -4,7 +4,7 @@ import Icon, { Logo } from "./Icon.jsx";
 
 const NAV = [
   { id: "dashboard", label: "看板", icon: "dashboard" },
-  { id: "sectors", label: "股市板块", icon: "trending-up" },
+  { id: "stock-search", label: "股票搜索", icon: "search" },
   { id: "calculator", label: "交易计划", icon: "calculator" },
   { id: "plan-list", label: "交易记录", icon: "plan-list" },
   { id: "positions", label: "持仓记录", icon: "trending-up" },
