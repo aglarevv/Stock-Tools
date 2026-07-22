@@ -73,11 +73,11 @@ mkdir -p "$SERVER_RESOURCES_DIR/services"
 cp "$ROOT_DIR/src/server/services/rss.js" "$SERVER_RESOURCES_DIR/services/rss.js" 2>/dev/null || true
 cp "$ROOT_DIR/src/server/services/classifier.js" "$SERVER_RESOURCES_DIR/services/classifier.js" 2>/dev/null || true
 # 复制其他服务文件
-for sf in akshare.js stockSdk.js xuangutong.js reportAnalyzer.js utils.js; do
+for sf in bridge.js stockSdk.js xuangutong.js reportAnalyzer.js utils.js; do
   cp "$ROOT_DIR/src/server/services/$sf" "$SERVER_RESOURCES_DIR/services/$sf" 2>/dev/null || true
 done
 # 复制 Python 桥接脚本（作为 PyInstaller 编译失败的降级）
-cp "$ROOT_DIR/src/server/services/akshare_bridge.py" "$SERVER_RESOURCES_DIR/services/akshare_bridge.py" 2>/dev/null || true
+cp "$ROOT_DIR/src/server/services/stock_bridge.py" "$SERVER_RESOURCES_DIR/services/stock_bridge.py" 2>/dev/null || true
 # 复制 routes 目录
 mkdir -p "$SERVER_RESOURCES_DIR/routes"
 for rf in "$ROOT_DIR"/src/server/routes/*.js; do
@@ -100,12 +100,11 @@ BUILD_DIR="$ROOT_DIR/src/server/services"
   pip install pyinstaller akshare baostock --quiet
   AKDIR=$(python3 -c "import akshare, os; print(os.path.dirname(akshare.__file__))")
   echo "AKShare data dir: $AKDIR/file_fold"
-  pyinstaller --onefile --name akshare_bridge --distpath "$SERVER_RESOURCES_DIR" \
-    --add-data "$AKDIR/file_fold:akshare/file_fold" \
-    akshare_bridge.py 2>&1 | tail -3
-  deactivate 2>/dev/null
-  rm -rf venv_build __pycache__ akshare_bridge.spec build 2>/dev/null
-) && echo "PyInstaller OK: $(ls -lh "$SERVER_RESOURCES_DIR/akshare_bridge" 2>/dev/null)" || \
+  pyinstaller --onefile --name stock_bridge --distpath "$SERVER_RESOURCES_DIR" \
+    --add-data "$AKDIR/file_fold:akshare/file_fold/" \
+    stock_bridge.py 2>&1 | tail -3
+  rm -rf venv_build __pycache__ stock_bridge.spec build 2>/dev/null
+) && echo "PyInstaller OK: $(ls -lh "$SERVER_RESOURCES_DIR/stock_bridge" 2>/dev/null)" || \
   echo "WARNING: PyInstaller failed, will fallback to system Python"
 
 # 从应用图标 PNG 生成 .icns（与加载页/侧边栏图标一致）

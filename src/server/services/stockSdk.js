@@ -7,7 +7,7 @@ let sdkInitError = null;
 let akshare = null;
 function getAKShare() {
   if (akshare) return akshare;
-  try { akshare = require("./akshare"); console.log("[stockSdk] AKShare 降级数据源已加载"); return akshare; }
+  try { akshare = require("./bridge"); console.log("[stockSdk] Python 桥接已加载 (biying+baostock)"); return akshare; }
   catch (err) { console.warn("[stockSdk] AKShare 降级数据源不可用:", err.message); return null; }
 }
 
