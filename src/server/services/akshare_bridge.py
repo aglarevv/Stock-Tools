@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-AKShare 数据桥接脚本 — 供 Node.js 后端通过子进程调用
-多数据源自动降级：东方财富 → 同花顺 → 新浪/腾讯
+数据桥接脚本 — 供 Node.js 后端通过子进程调用
+数据源: biyingapi (股票列表/搜索/板块) + baostock (日K线)
 
 用法：
-  echo '{"action":"kline","symbol":"000001"}' | python3 akshare_bridge.py
-  python3 akshare_bridge.py '{"action":"industries"}'
+  echo '{"action":"kline","symbol":"000001"}' | python3 stock_bridge.py
+  python3 stock_bridge.py '{"action":"industries"}'
 
 所有输出为单行 JSON，包含 ok 和 data/error 字段。
 """
@@ -20,30 +20,12 @@ import io
 # 强制 stdout 使用 UTF-8（Windows 默认不是 UTF-8）
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
-# 禁用系统代理
+# ── 禁用系统代理 ──
 for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"]:
     os.environ.pop(key, None)
 
-try:
-    import akshare as ak
-except ImportError:
-    ak = None
-
-
-def try_sources(*fns):
-    """多数据源降级：依次尝试"""
-    errors = []
-    for name, fn in fns:
-        try:
-            result = fn()
-            if result is not None and (not hasattr(result, 'empty') or not result.empty):
-                return result, None
-        except Exception as e:
-            errors.append(f"[{name}] {e}")
-    return None, "; ".join(errors) if errors else "所有数据源均失败"
 
 # ═══════════════════════════════════════════════════════════════════
-# 格式化函数
 # ═══════════════════════════════════════════════════════════════════
 
 def fmt_kline(row):

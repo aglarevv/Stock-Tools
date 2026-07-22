@@ -1,4 +1,4 @@
-/** AKShare Node.js 桥接 — 仅保留前端仍使用的接口 */
+/** Python 桥接 — 数据源: biyingapi (股票/板块) + baostock (日K线) */
 "use strict";
 const { execFile } = require("child_process");
 const path = require("path");
@@ -23,7 +23,20 @@ function findPython() {
   return isWin ? "python" : "python3";
 }
 
-const BRIDGE_SCRIPT = path.join(__dirname, "akshare_bridge.py");
+// 查找 akshare_bridge.py 脚本（打包应用下在 resources/server/services/）
+function findBridgeScript() {
+  const candidates = [__dirname, path.join(__dirname, ".."),
+    process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "",
+    process.resourcesPath ? path.join(process.resourcesPath, "server") : ""];
+  for (const d of candidates) {
+    if (!d) continue;
+    const p = path.join(d, "akshare_bridge.py");
+    if (fs.existsSync(p)) return p;
+  }
+  return path.join(__dirname, "akshare_bridge.py"); // fallback
+}
+
+const BRIDGE_SCRIPT = findBridgeScript();
 const PYTHON_BIN = BUNDLED_BIN ? null : findPython();
 
 function callBridge(payload, timeout = 30000) {
