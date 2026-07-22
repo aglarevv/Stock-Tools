@@ -4,6 +4,7 @@ import Icon from "./Icon.jsx";
 
 const fmt = (v, d = 2) => v != null && isFinite(v) ? Number(v).toFixed(d) : "--";
 const cnMarket = (c) => !c ? "" : c.includes("sh") ? "沪" : c.includes("sz") ? "深" : c.includes("bj") ? "北" : c.includes("hk") ? "港" : c.includes("us") ? "美" : "";
+const pctClass = (v) => { if (v == null || isNaN(Number(v))) return ""; return Number(v) >= 0 ? "up" : "down"; };
 
 export default function StockSearch({ navigate, showToast }) {
   const api = useApi();
@@ -71,6 +72,45 @@ export default function StockSearch({ navigate, showToast }) {
 
   return (
     <div className="page">
+      <style>{`
+        .search-bar { display:flex; gap:8px; margin-bottom:16px; }
+        .search-input-wrap { flex:1; position:relative; }
+        .search-input-wrap input {
+          width:100%; padding:8px 36px 8px 12px;
+          border:1px solid var(--border-default); border-radius:var(--radius-md);
+          font-size:14px; font-family:var(--font-sans);
+          background:var(--bg-input); color:var(--text-primary);
+          outline:none; transition:border-color .15s; box-sizing:border-box;
+        }
+        .search-input-wrap input:focus { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-glow); }
+        .search-input-wrap .search-icon {
+          position:absolute; right:10px; top:50%; transform:translateY(-50%);
+          color:var(--text-muted); pointer-events:none;
+        }
+        .search-result-item {
+          display:flex; align-items:center; justify-content:space-between;
+          padding:10px 14px; background:var(--bg-card); border-radius:var(--radius-sm);
+          box-shadow:var(--shadow-card); margin-bottom:6px; cursor:pointer;
+          transition:all .12s; border:1px solid transparent;
+        }
+        .search-result-item:hover { border-color:var(--accent); }
+        .search-result-left { display:flex; align-items:center; gap:10px; }
+        .search-result-name { font-weight:600; font-size:14px; color:var(--text-primary); }
+        .search-result-code { font-size:11px; color:var(--text-muted); font-family:var(--font-mono); }
+        .search-result-market { font-size:10px; background:var(--bg-hover); padding:1px 6px; border-radius:4px; color:var(--text-secondary); }
+        .search-result-type { font-size:10px; background:var(--accent-soft); padding:1px 6px; border-radius:4px; color:var(--accent); }
+        .search-result-item.stock-result { flex-wrap:wrap; gap:8px; }
+        .search-result-quote { display:flex; align-items:center; gap:10px; flex-shrink:0; }
+        .quote-price { font-size:17px; font-weight:700; font-family:var(--font-mono); color:var(--text-primary); min-width:60px; text-align:right; }
+        .quote-change { font-size:14px; font-weight:600; font-family:var(--font-mono); min-width:70px; text-align:right; }
+        .quote-change.up { color:var(--loss); }
+        .quote-change.down { color:var(--profit); }
+        .quote-change-amt { font-size:12px; font-family:var(--font-mono); min-width:50px; text-align:right; }
+        .quote-change-amt.up { color:var(--loss); }
+        .quote-change-amt.down { color:var(--profit); }
+        .empty-hint { text-align:center; padding:40px 20px; color:var(--text-muted); font-size:14px; }
+      `}</style>
+
       <div className="topbar">
         <h1 className="topbar-title">
           <Icon name="search" size={22} style={{ verticalAlign: -4, marginRight: 6 }} />
@@ -78,69 +118,76 @@ export default function StockSearch({ navigate, showToast }) {
         </h1>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <form onSubmit={handleSearch} className="search-bar">
+        <div className="search-input-wrap">
           <input
-            className="input"
-            placeholder="输入股票代码/名称/拼音…"
+            type="text"
             value={kw}
             onChange={(e) => setKw(e.target.value)}
-            style={{ flex: 1, fontSize: 15, padding: "10px 12px" }}
+            placeholder="输入股票代码/名称/拼音搜索…"
+            autoFocus
           />
-          <button className="btn btn-primary" type="submit" disabled={loading}
-            style={{ fontSize: 14, padding: "8px 20px" }}>
-            {loading ? "搜索中…" : <><Icon name="search" size={14} style={{ verticalAlign: -1, marginRight: 4 }} />搜索</>}
-          </button>
-        </form>
+          <span className="search-icon"><Icon name="search" size={16} /></span>
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={loading || !kw.trim()}>
+          {loading ? "搜索中…" : "搜索"}
+        </button>
+      </form>
 
       {/* 搜索结果 */}
-      {results && !detail && (
-        <div className="card" style={{ padding: 0 }}>
-          <div className="card-header" style={{ padding: "10px 14px" }}>
-            <span>搜索结果 ({results.length})</span>
+      {results !== null && (
+        <div>
+          <div style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>
+            找到 {results.length} 个结果
           </div>
-          <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ fontSize: 12, color: "var(--text-secondary)" }}>
-                <th style={{ padding: "8px 10px", textAlign: "left" }}>代码</th>
-                <th style={{ padding: "8px 10px", textAlign: "left" }}>名称</th>
-                <th style={{ padding: "8px 10px", textAlign: "right" }}>类型</th>
-                <th style={{ padding: "8px 10px", textAlign: "right" }}>最新价</th>
-                <th style={{ padding: "8px 10px", textAlign: "right" }}>涨跌幅</th>
-              </tr>
-            </thead>
-            <tbody>
-              {results.map((r, i) => {
-                const q = quotes?.[r.code];
-                const chg = q?.changePercent || r.changePercent || 0;
-                return (
-                  <tr key={r.code || i} style={{ borderTop: "1px solid var(--border-color)", cursor: "pointer" }}
-                    onClick={() => openStockDetail(r.code, r.name)}>
-                    <td style={{ padding: "8px 10px" }}>
-                      <span className="badge" style={{ fontSize: 11 }}>{cnMarket(r.code)}</span>{" "}
-                      <span style={{ fontFamily: "monospace", fontSize: 13 }}>{r.code?.replace(/^(sh|sz|bj|hk|us)/, "")}</span>
-                    </td>
-                    <td style={{ padding: "8px 10px", fontWeight: 500 }}>{r.name || r.code}</td>
-                    <td style={{ padding: "8px 10px", textAlign: "right", fontSize: 12, color: "var(--text-secondary)" }}>
-                      {r.category === "stock" ? "股票" : r.category === "index" ? "指数" : r.category === "etf" ? "ETF" : r.category === "fund" ? "基金" : r.category || ""}
-                    </td>
-                    <td style={{ padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 13 }}>
-                      {fmt(q?.price || r.price)}
-                    </td>
-                    <td style={{
-                      padding: "8px 10px", textAlign: "right", fontFamily: "monospace", fontSize: 13,
-                      color: chg >= 0 ? "var(--up-color)" : "var(--down-color)",
-                    }}>
-                      {chg >= 0 ? "+" : ""}{fmt(chg)}%
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          {results.length === 0 ? (
+            <div className="empty-hint">未找到匹配结果</div>
+          ) : (
+            results.map((r, i) => {
+              const q = quotes?.[r.code];
+              const chg = q?.changePercent ?? r.changePercent;
+              return (
+                <div
+                  key={r.code || i}
+                  className="search-result-item stock-result"
+                  onClick={() => openStockDetail(r.code, r.name)}
+                >
+                  <div className="search-result-left" style={{ minWidth: 0 }}>
+                    <div>
+                      <div className="search-result-name">{r.name}</div>
+                      <div style={{ display: "flex", gap: 6, marginTop: 2, flexWrap: "wrap" }}>
+                        <span className="search-result-code">{r.code?.replace(/^(sh|sz|bj|hk|us)/, "")}</span>
+                        {cnMarket(r.code) && <span className="search-result-market">{cnMarket(r.code)}</span>}
+                        {r.category && (
+                          <span className="search-result-type">
+                            {r.category === "stock" ? "股票" : r.category === "index" ? "指数" : r.category === "fund" ? "基金" : r.category}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {/* 实时行情 */}
+                  <div className="search-result-quote">
+                    {q ? (
+                      <>
+                        <div className="quote-price">{fmt(q.price)}</div>
+                        <div className={`quote-change ${pctClass(chg)}`}>
+                          {chg != null ? (chg >= 0 ? "+" : "") + fmt(chg) + "%" : "--"}
+                        </div>
+                        <div className={`quote-change-amt ${pctClass(q.change)}`}>
+                          {q.change != null ? (q.change >= 0 ? "+" : "") + fmt(q.change) : "--"}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "var(--text-muted)" }}>--</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       )}
-
-      {results?.length === 0 && <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: 40 }}>未找到匹配结果</p>}
 
       {/* 股票详情弹窗 */}
       {detail && (
@@ -154,7 +201,7 @@ export default function StockSearch({ navigate, showToast }) {
               {detailQuote && (
                 <div style={{ display: "flex", gap: 16, marginBottom: 12, fontSize: 14 }}>
                   <span>最新价: <b style={{ fontFamily: "monospace" }}>{detailQuote.price}</b></span>
-                  <span style={{ color: (detailQuote.changePercent || 0) >= 0 ? "var(--up-color)" : "var(--down-color)" }}>
+                  <span className={`quote-change ${pctClass(detailQuote.changePercent)}`}>
                     涨跌幅: <b>{fmt(detailQuote.changePercent)}%</b>
                   </span>
                   <span>最高: <b>{detailQuote.high}</b> / 最低: <b>{detailQuote.low}</b></span>
@@ -169,7 +216,7 @@ export default function StockSearch({ navigate, showToast }) {
                 ))}
               </div>
               {detailLoading ? (
-                <p style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>加载K线中…</p>
+                <p className="empty-hint">加载K线中…</p>
               ) : detailKline?.length > 0 ? (
                 <div style={{ maxHeight: 400, overflow: "auto", fontSize: 12 }}>
                   <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -198,7 +245,7 @@ export default function StockSearch({ navigate, showToast }) {
                   </table>
                 </div>
               ) : (
-                <p style={{ textAlign: "center", padding: 40, color: "var(--text-secondary)" }}>暂无K线数据</p>
+                <p className="empty-hint">暂无K线数据</p>
               )}
             </div>
           </div>
