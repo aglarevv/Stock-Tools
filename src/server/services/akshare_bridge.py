@@ -15,6 +15,10 @@ import json
 import traceback
 import random
 import os
+import io
+
+# 强制 stdout 使用 UTF-8（Windows 默认不是 UTF-8）
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
 
 # 禁用系统代理
 for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy", "ALL_PROXY", "all_proxy", "NO_PROXY", "no_proxy"]:

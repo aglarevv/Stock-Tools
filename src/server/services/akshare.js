@@ -29,41 +29,40 @@ const PYTHON_BIN = BUNDLED_BIN ? null : findPython();
 function callBridge(payload, timeout = 30000) {
   return new Promise((resolve) => {
     const useBin = BUNDLED_BIN;
+    const opts = { timeout, maxBuffer: 10 * 1024 * 1024, encoding: "utf-8" };
     const child = useBin
-      ? execFile(useBin, [JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 })
-      : execFile(PYTHON_BIN, [BRIDGE_SCRIPT, JSON.stringify(payload)], { timeout, maxBuffer: 10 * 1024 * 1024 });
-    let stdout = "";
-    child.stdout.on("data", (d) => { stdout += d.toString(); });
-    child.on("error", (err) => {
-      if (!useBin) findFallbackBinary(payload, resolve, err);
-      else resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
-    });
-    child.on("close", (code) => {
-      if (code !== 0 && !BUNDLED_BIN && (stdout.includes("Python was not found") || stdout.includes("No such file"))) {
-        findFallbackBinary(payload, resolve, new Error(stdout));
-        return;
+      ? execFile(useBin, [JSON.stringify(payload)], opts)
+      : execFile(PYTHON_BIN, [BRIDGE_SCRIPT, JSON.stringify(payload)], opts);
+    let stdout = "", stderr = "";
+    child.stdout.on("data", (d) => { stdout += d; });
+    child.stderr && (child.stderr.on("data", (d) => { stderr += d; }));
+    function tryResolve() {
+      if (stdout.trim()) {
+        try { resolve(JSON.parse(stdout)); return; } catch {}
       }
-      try { resolve(JSON.parse(stdout)); }
-      catch { resolve({ ok: false, error: `AKShare 解析失败: ${stdout.slice(0, 200)}` }); }
-    });
-  });
-}
-
-function findFallbackBinary(payload, resolve, err) {
-  const ext = process.platform === "win32" ? ".exe" : "";
-  for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
-    if (!d) continue;
-    const bin = path.join(d, "akshare_bridge" + ext);
-    if (fs.existsSync(bin)) {
-      const child = execFile(bin, [JSON.stringify(payload)], { timeout: 30000, maxBuffer: 10 * 1024 * 1024 });
-      let out = "";
-      child.stdout.on("data", d => out += d.toString());
-      child.on("close", () => { try { resolve(JSON.parse(out)); } catch { resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` }); } });
-      child.on("error", () => resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` }));
-      return;
+      // 尝试 fallback binary
+      const ext = process.platform === "win32" ? ".exe" : "";
+      for (const d of [__dirname, path.join(__dirname, ".."), process.resourcesPath ? path.join(process.resourcesPath, "server", "services") : "", process.resourcesPath ? path.join(process.resourcesPath, "server") : ""]) {
+        if (!d) continue;
+        const bin = path.join(d, "akshare_bridge" + ext);
+        if (fs.existsSync(bin)) {
+          const c2 = execFile(bin, [JSON.stringify(payload)], { timeout: 30000, maxBuffer: 10 * 1024 * 1024, encoding: "utf-8" });
+          let out2 = "";
+          c2.stdout.on("data", d => out2 += d);
+          c2.on("close", () => {
+            if (out2.trim()) try { resolve(JSON.parse(out2)); return; } catch {}
+            resolve({ ok: false, error: `AKShare 调用失败: ${stderr || stdout.slice(0, 200) || errMsg}` });
+          });
+          return;
+        }
+      }
+      let errMsg = stderr || stdout.slice(0, 200) || "无输出";
+      resolve({ ok: false, error: `AKShare 调用失败: ${errMsg}` });
     }
-  }
-  resolve({ ok: false, error: `AKShare 调用失败: ${err.message}` });
+    let errMsg = "";
+    child.on("error", (err) => { errMsg = err.message; });
+    child.on("close", (code) => { tryResolve(); });
+  });
 }
 
 const akshare = {
