@@ -4,11 +4,11 @@
 let sdk = null;
 let sdkInitError = null;
 
-let akshare = null;
-function getAKShare() {
-  if (akshare) return akshare;
-  try { akshare = require("./bridge"); console.log("[stockSdk] Python 桥接已加载 (biying+baostock)"); return akshare; }
-  catch (err) { console.warn("[stockSdk] AKShare 降级数据源不可用:", err.message); return null; }
+let bridge_ = null;
+function getBridge() {
+  if (bridge_) return bridge_;
+  try { bridge_ = require("./bridge"); console.log("[stockSdk] Python 桥接已加载 (biying+baostock)"); return bridge_; }
+  catch (err) { console.warn("[stockSdk] Python 桥接不可用:", err.message); return null; }
 }
 
 function getSDK() {
@@ -26,14 +26,14 @@ async function safeCall(operation, fn) {
   catch (err) { console.error(`[stockSdk] ${operation} 失败:`, err.message); return { ok: false, error: err.message || "未知错误" }; }
 }
 
-async function withAKFallback(operation, sdkFn, akFn) {
+async function withFallback(operation, sdkFn, bridgeFn) {
   const sdkResult = await safeCall(operation, sdkFn);
   if (sdkResult.ok) return sdkResult;
-  const ak = getAKShare();
-  if (!ak) return { ok: false, error: `${sdkResult.error}（AKShare 降级数据源不可用）` };
-  console.log(`[stockSdk] ${operation} SDK失败，降级到 AKShare:`, sdkResult.error);
-  try { const data = await akFn(ak); return { ok: true, data, _source: "akshare" }; }
-  catch (err) { console.error(`[stockSdk] ${operation} AKShare 降级也失败:`, err.message); return { ok: false, error: `SDK: ${sdkResult.error}; AKShare: ${err.message}` }; }
+  const br = getBridge();
+  if (!br) return { ok: false, error: `${sdkResult.error}（Python 桥接不可用）` };
+  console.log(`[stockSdk] ${operation} SDK失败，降级到 Python 桥接:`, sdkResult.error);
+  try { const data = await bridgeFn(br); return { ok: true, data, _source: "bridge" }; }
+  catch (err) { console.error(`[stockSdk] ${operation} Python 桥接也失败:`, err.message); return { ok: false, error: `SDK: ${sdkResult.error}; 桥接: ${err.message}` }; }
 }
 
 const stockService = {
@@ -43,30 +43,30 @@ const stockService = {
   // 搜索股票
   async searchStocks(keyword) {
     if (!keyword || !keyword.trim()) return { ok: false, error: "关键词不能为空" };
-    return withAKFallback("搜索股票",
+    return withFallback("搜索股票",
       async () => {
         const s = getSDK();
         return (await s.search(keyword.trim())).map(r => ({ code: r.code || "", name: r.name || "", market: r.market || "", type: r.type || "", category: r.category || "other" }));
       },
-      async (ak) => { const res = await ak.searchStock(keyword.trim()); if (!res.ok) throw new Error(res.error); return res.data; }
+      async (br) => { const res = await br.searchStock(keyword.trim()); if (!res.ok) throw new Error(res.error); return res.data; }
     );
   },
 
   // 行业板块列表
   async getIndustryList() {
-    return withAKFallback("获取行业板块列表",
+    return withFallback("获取行业板块列表",
       async () => {
         const s = getSDK();
         return (await s.getIndustryList()).map(b => ({ rank: b.rank, name: b.name, code: b.code, price: b.price, change: b.change, changePercent: b.changePercent, totalMarketCap: b.totalMarketCap, turnoverRate: b.turnoverRate, riseCount: b.riseCount, fallCount: b.fallCount, leadingStock: b.leadingStock, leadingStockChangePercent: b.leadingStockChangePercent }));
       },
-      async (ak) => { const res = await ak.getIndustries(); if (!res.ok) throw new Error(res.error); return res.data; }
+      async (br) => { const res = await br.getIndustries(); if (!res.ok) throw new Error(res.error); return res.data; }
     );
   },
 
   // 多市场行情
   async getMultiMarketQuotes(codes) {
     if (!Array.isArray(codes) || codes.length === 0) return { ok: false, error: "代码列表不能为空" };
-    return withAKFallback("多市场行情",
+    return withFallback("多市场行情",
       async () => {
         const s = getSDK();
         const aCodes = [], hkCodes = [], usCodes = [], fundCodes = [];
@@ -87,14 +87,14 @@ const stockService = {
         if (fundCodes.length > 0) try { for (const q of await s.getFundQuotes(fundCodes)) results.push({ code: q.code, name: q.name, price: q.nav, prevClose: null, open: null, high: null, low: null, volume: null, amount: null, change: q.change, changePercent: null, time: q.navDate, market: "fund", currency: "CNY" }); } catch (e) { console.error("[stockSdk] 基金行情获取失败:", e.message); }
         return results;
       },
-      async (ak) => { const res = await ak.getMultiMarketQuotes(codes); if (!res.ok) throw new Error(res.error); return res.data; }
+      async (br) => { const res = await br.getMultiMarketQuotes(codes); if (!res.ok) throw new Error(res.error); return res.data; }
     );
   },
 
   // K线数据
   async getStockKline(symbol, options = {}) {
     if (!symbol) return { ok: false, error: "股票代码不能为空" };
-    return withAKFallback("获取K线数据",
+    return withFallback("获取K线数据",
       async () => {
         const s = getSDK();
         const code = symbol.trim();
@@ -107,23 +107,23 @@ const stockService = {
         else klines = await s.getHistoryKline(code, opts);
         return (klines || []).map(k => ({ date: k.date || "", open: k.open, close: k.close, high: k.high, low: k.low, volume: k.volume, amount: k.amount, changePercent: k.changePercent }));
       },
-      async (ak) => { const res = await ak.getStockKline(symbol, options); if (!res.ok) throw new Error(res.error); return res.data; }
+      async (br) => { const res = await br.getStockKline(symbol, options); if (!res.ok) throw new Error(res.error); return res.data; }
     );
   },
 
   // 搜索板块
   async searchSectors(keyword) {
-    return withAKFallback("搜索板块",
+    return withFallback("搜索板块",
       async () => { const s = getSDK(); return await s.searchSectors(keyword.trim()); },
-      async (ak) => { const res = await ak.searchSectors(keyword); if (!res.ok) throw new Error(res.error); return res.data; }
+      async (br) => { const res = await br.searchSectors(keyword); if (!res.ok) throw new Error(res.error); return res.data; }
     );
   },
 
   // 随机K线（训练用）
   async getRandomKline(count = 500) {
-    const ak = getAKShare();
-    if (!ak) return { ok: false, error: "AKShare 数据源不可用" };
-    try { return await ak.getRandomKline(count); }
+    const br = getBridge();
+    if (!br) return { ok: false, error: "Python 桥接不可用" };
+    try { return await br.getRandomKline(count); }
     catch (err) { return { ok: false, error: err.message }; }
   },
 
