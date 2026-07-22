@@ -496,35 +496,69 @@ def search_sectors(keyword):
 
 
 def get_board_stocks(symbol, board_type="industry"):
-    """获取板块成分股（多源降级：东方财富 → 同花顺）"""
+    """获取板块成分股（多源降级：东方财富 → Futu/同花顺 → 必盈API成分股）"""
+    df, err = None, None
     if board_type == "industry":
         df, err = try_sources(
             ("东方财富", lambda: ak.stock_board_industry_cons_em(symbol=symbol)),
-            ("同花顺", lambda: ak.stock_board_industry_cons_ths(symbol=symbol)),
         )
     else:
         df, err = try_sources(
             ("东方财富", lambda: ak.stock_board_concept_cons_em(symbol=symbol)),
-            ("同花顺", lambda: ak.stock_board_concept_cons_ths(symbol=symbol)),
+            ("Futu", lambda: ak.stock_concept_cons_futu(symbol=symbol)),
         )
     if df is None or df.empty:
-        return []
+        return _fetch_biying_board_stocks(symbol, board_type)
     stocks = []
+    name_col = "名称" if "名称" in df.columns else "股票名称" if "股票名称" in df.columns else df.columns[1] if len(df.columns) > 1 else df.columns[0]
+    code_col = "代码" if "代码" in df.columns else "股票代码" if "股票代码" in df.columns else None
+    price_col = "最新价" if "最新价" in df.columns else "现价" if "现价" in df.columns else None
+    chg_pct_col = "涨跌幅" if "涨跌幅" in df.columns else "涨幅" if "涨幅" in df.columns else None
+    chg_amt_col = "涨跌额" if "涨跌额" in df.columns else None
+    vol_col = "成交量" if "成交量" in df.columns else None
+    amt_col = "成交额" if "成交额" in df.columns else None
+    turn_col = "换手率" if "换手率" in df.columns else None
     for i, (_, row) in enumerate(df.iterrows()):
         stocks.append({
-            "code": str(row.get("代码", "")),
-            "name": str(row.get("名称", "")),
-            "price": float(row.get("最新价", 0) or 0),
-            "change": float(row.get("涨跌额", 0) or 0),
-            "changePercent": float(row.get("涨跌幅", 0) or 0),
-            "volume": float(row.get("成交量", 0) or 0),
-            "amount": float(row.get("成交额", 0) or 0),
-            "turnoverRate": float(row.get("换手率", 0) or 0),
-            "pe": float(row.get("市盈率-动态", 0) or 0) or None,
-            "pb": float(row.get("市净率", 0) or 0) or None,
-            "rank": i + 1,
+            "code": str(row.get(code_col, "")) if code_col else "",
+            "name": str(row.get(name_col, "")),
+            "price": float(row.get(price_col, 0) or 0) if price_col else 0,
+            "change": float(row.get(chg_amt_col, 0) or 0) if chg_amt_col else 0,
+            "changePercent": float(row.get(chg_pct_col, 0) or 0) if chg_pct_col else 0,
+            "volume": float(row.get(vol_col, 0) or 0) if vol_col else 0,
+            "amount": float(row.get(amt_col, 0) or 0) if amt_col else 0,
+            "turnoverRate": float(row.get(turn_col, 0) or 0) if turn_col else 0,
+            "pe": None, "pb": None, "rank": i + 1,
         })
     return stocks
+
+
+def _fetch_biying_board_stocks(symbol, board_type):
+    """兜底获取板块成分股（通过AKShare Sina接口）"""
+    import urllib.request, json as _json, ssl
+    try:
+        # 尝试新浪板块成分股接口
+        if board_type == "industry":
+            url = f"http://vip.stock.finance.sina.com.cn/q/go.php/vIndustryRank/kind/industry/symbol/{symbol}"
+        else:
+            url = f"http://vip.stock.finance.sina.com.cn/q/go.php/vIndustryRank/kind/concept/symbol/{symbol}"
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        resp = urllib.request.urlopen(req, timeout=10)
+        html = resp.read().decode("gbk", errors="ignore")
+        # 解析HTML表格提取成分股
+        import re
+        stocks = []
+        for m in re.finditer(r'<a[^>]*href="[^"]*quotes_search\.html\?st=[^"]*"[^>]*>([^<]+)</a>', html):
+            name = m.group(1).strip()
+            stocks.append(name)
+        if not stocks:
+            return []
+        return [{"code": "", "name": n, "price": 0, "change": 0,
+                 "changePercent": 0, "volume": 0, "amount": 0,
+                 "turnoverRate": 0, "pe": None, "pb": None, "rank": i+1}
+                for i, n in enumerate(stocks[:50])]
+    except Exception:
+        return []
 
 
 def get_zt_pool(zt_type="zt", date=None):
