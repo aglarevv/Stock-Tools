@@ -268,8 +268,14 @@ async function handleTradeRoutes(request, response, url, ctx) {
         `SELECT id, symbol, DATE_FORMAT(review_date, '%Y-%m-%d') AS reviewDate,
           pnl_amount AS pnlAmount, pnl_rate AS pnlRate,
           index_judgment AS indexJudgment,
-          review_type AS reviewType
-        FROM daily_reviews ORDER BY review_date DESC LIMIT 5`
+          volume_judgment AS volumeJudgment,
+          sentiment_judgment AS sentimentJudgment,
+          leading_sectors AS leadingSectors,
+          buy_signal AS buySignal,
+          sell_signal AS sellSignal,
+          improvement_plan AS improvementPlan,
+          market_plan AS marketPlan
+        FROM daily_reviews ORDER BY review_date DESC, id DESC LIMIT 5`
       );
 
       // K线训练统计
