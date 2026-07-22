@@ -72,6 +72,21 @@ cp "$ROOT_DIR/src/server/keywords.js" "$SERVER_RESOURCES_DIR/keywords.js" 2>/dev
 mkdir -p "$SERVER_RESOURCES_DIR/services"
 cp "$ROOT_DIR/src/server/services/rss.js" "$SERVER_RESOURCES_DIR/services/rss.js" 2>/dev/null || true
 cp "$ROOT_DIR/src/server/services/classifier.js" "$SERVER_RESOURCES_DIR/services/classifier.js" 2>/dev/null || true
+# 复制其他服务文件
+for sf in akshare.js stockSdk.js xuangutong.js reportAnalyzer.js utils.js; do
+  cp "$ROOT_DIR/src/server/services/$sf" "$SERVER_RESOURCES_DIR/services/$sf" 2>/dev/null || true
+done
+# 复制 Python 桥接脚本（作为 PyInstaller 编译失败的降级）
+cp "$ROOT_DIR/src/server/services/akshare_bridge.py" "$SERVER_RESOURCES_DIR/services/akshare_bridge.py" 2>/dev/null || true
+# 复制 routes 目录
+mkdir -p "$SERVER_RESOURCES_DIR/routes"
+for rf in "$ROOT_DIR"/src/server/routes/*.js; do
+  cp "$rf" "$SERVER_RESOURCES_DIR/routes/" 2>/dev/null || true
+done
+# 复制数据库相关
+cp "$ROOT_DIR/src/server/database.js" "$SERVER_RESOURCES_DIR/database.js" 2>/dev/null || true
+cp "$ROOT_DIR/src/server/dbSync.js" "$SERVER_RESOURCES_DIR/dbSync.js" 2>/dev/null || true
+cp "$ROOT_DIR/src/server/newsDigest.js" "$SERVER_RESOURCES_DIR/newsDigest.js" 2>/dev/null || true
 cp "$ROOT_DIR/package.json" "$SERVER_RESOURCES_DIR/package.json"
 cp "$ROOT_DIR/sources.opml" "$RESOURCES_DIR/sources.opml"
 
