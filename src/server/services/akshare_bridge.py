@@ -109,20 +109,24 @@ def get_random_kline(kline_count=500):
     从东方财富获取全量股票随机挑选，如果失败则从预定义龙头股列表随机抽取。
     """
     try:
-        # 先尝试从东方财富全量股票中随机选
+        # 先尝试从必盈API获取全量股票并随机挑选
         try:
-            df = ak.stock_zh_a_spot_em()
-            if df is not None and not df.empty and "代码" in df.columns:
-                candidates = df[
-                    ~df["代码"].astype(str).str.startswith(("4", "8", "9")) &
-                    ~df["名称"].astype(str).str.contains("ST|退|N|C|U")
-                ]
-                for _ in range(15):
-                    if len(candidates) == 0:
-                        break
-                    row = candidates.sample(n=1).iloc[0]
-                    code = str(row.get("代码", ""))
-                    name = str(row.get("名称", ""))
+            import urllib.request, json as _json, ssl
+            BIYING_LICENCE = "71A8595A-EE20-4676-BE62-266679583A70"
+            url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            resp = urllib.request.urlopen(req, timeout=15, context=ctx)
+            all_stocks = _json.loads(resp.read().decode("utf-8"))
+            if all_stocks and isinstance(all_stocks, list):
+                import random as _random
+                _random.shuffle(all_stocks)
+                for s in all_stocks[:50]:
+                    dm = s.get("dm", "")
+                    code = dm.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
+                    name = s.get("mc", "")
                     klines = get_kline(code, "daily", None, None, kline_count=kline_count)
                     if klines and len(klines) >= 20:
                         klines = klines[-kline_count:]
@@ -130,11 +134,10 @@ def get_random_kline(kline_count=500):
                             "ok": True,
                             "data": {
                                 "code": code, "name": name,
-                                "price": float(row.get("最新价", row.get("price", row.get("trade", 0))) or 0),
+                                "price": klines[-1]["close"],
                                 "klines": klines,
                             }
                         }
-                    candidates = candidates.drop(row.name)
         except Exception:
             pass  # 降级到预定义列表
 
