@@ -66,33 +66,13 @@ def fmt_quote(row):
     }
 
 
-# 预定义的高流动性A股列表（各行业龙头，确保有完整K线数据）
-FALLBACK_STOCKS = [
-    ("000001", "平安银行"), ("000002", "万科A"), ("000333", "美的集团"),
-    ("000651", "格力电器"), ("000858", "五粮液"), ("002415", "海康威视"),
-    ("002475", "立讯精密"), ("300059", "东方财富"), ("300124", "汇川技术"),
-    ("300274", "阳光电源"), ("300750", "宁德时代"), ("600000", "浦发银行"),
-    ("600036", "招商银行"), ("600085", "同仁堂"), ("600104", "上汽集团"),
-    ("600276", "恒瑞医药"), ("600309", "万华化学"), ("600519", "贵州茅台"),
-    ("600585", "海螺水泥"), ("600690", "海尔智家"), ("600809", "山西汾酒"),
-    ("600887", "伊利股份"), ("600900", "长江电力"), ("600941", "中国移动"),
-    ("601012", "隆基绿能"), ("601088", "中国神华"), ("601166", "兴业银行"),
-    ("601318", "中国平安"), ("601398", "工商银行"), ("601857", "中国石油"),
-    ("601899", "紫金矿业"), ("603259", "药明康德"), ("688111", "金山办公"),
-    ("688981", "中芯国际"),
-]
-
-
 # ── 必盈API配置 ──
 BIYING_LICENCE = "71A8595A-EE20-4676-BE62-266679583A70"
 
 
 def get_random_kline(kline_count=500):
-    """随机获取一只A股的K线数据（用于训练）
-    优先从必盈API获取全量股票随机挑选，失败则从预定义龙头股列表随机抽取。
-    """
+    """从全市场随机抽取一只A股的K线数据（仅使用真实数据）"""
     import random as _random, urllib.request, json as _json, ssl
-    # 先尝试从必盈API获取股票列表
     try:
         url = f"https://api.biyingapi.com/hslt/list/{BIYING_LICENCE}"
         ctx = ssl.create_default_context()
@@ -102,52 +82,20 @@ def get_random_kline(kline_count=500):
         resp = urllib.request.urlopen(req, timeout=10, context=ctx)
         all_stocks = _json.loads(resp.read().decode("utf-8"))
         if all_stocks and isinstance(all_stocks, list):
-            _random.shuffle(all_stocks)
-            for s in all_stocks[:10]:
+            # 过滤掉北京股票（4/8/9开头，baostock 无K线）
+            valid = [s for s in all_stocks if s.get("dm","") and not s["dm"][0] in ("4","8","9")]
+            _random.shuffle(valid)
+            for s in valid[:30]:
                 dm = s.get("dm", "")
                 code = dm.replace(".SH", "").replace(".SZ", "").replace(".BJ", "")
                 name = s.get("mc", "")
                 klines = get_kline(code, "daily", None, None, kline_count=kline_count)
-                if klines and len(klines) >= 20:
+                if klines and len(klines) >= kline_count:
                     return {"ok": True, "data": {"code": code, "name": name,
                         "price": klines[-1]["close"], "klines": klines[-kline_count:]}}
     except Exception:
         pass
-
-    # 从预定义列表随机选
-    shuffled = FALLBACK_STOCKS[:]
-    _random.shuffle(shuffled)
-    for code, name in shuffled:
-        klines = get_kline(code, "daily", None, None, kline_count=kline_count)
-        if klines and len(klines) >= 20:
-            return {"ok": True, "data": {"code": code, "name": name,
-                "price": klines[-1]["close"], "klines": klines[-kline_count:]}}
-
-    return get_embedded_kline()
-
-
-# ── 终极降级：内置示例K线数据 ──
-def get_embedded_kline():
-    """返回一批内置的示例K线数据（当所有数据源均不可用时）"""
-    import random as _r
-    base = 18.50
-    klines = []
-    for i in range(500):
-        o = round(base + _r.uniform(-0.5, 0.5), 2)
-        c = round(o + _r.uniform(-0.8, 0.8), 2)
-        h = round(max(o, c) + _r.uniform(0, 0.4), 2)
-        l = round(min(o, c) - _r.uniform(0, 0.4), 2)
-        base = c
-        from datetime import datetime, timedelta
-        d = (datetime(2022, 1, 4) + timedelta(days=i)).strftime("%Y-%m-%d")
-        klines.append({"date": d, "open": o, "close": c, "high": h, "low": l, "volume": _r.randint(500, 5000) * 10000})
-    return {
-        "ok": True,
-        "data": {
-            "code": "000000", "name": "示例数据",
-            "price": klines[-1]["close"], "klines": klines,
-        }
-    }
+    return {"ok": False, "error": "无法从全市场获取到足够K线数据，请检查网络连接"}
 
 
 def _fetch_baostock(symbol, start_date, end_date):
@@ -207,22 +155,7 @@ def get_kline(symbol, period, start, end, sina_symbol=None, kline_count=2000):
             return [fmt_kline(row) for _, row in df.iterrows()]
     except Exception:
         pass
-    # 如果 baostock 不可用，尝试内置降级
-    import random as _r
-    _r.seed(abs(hash(symbol)))
-    base = 15.0 + _r.random() * 8
-    klines = []
-    from datetime import datetime, timedelta
-    sd = datetime.strptime(start[:10], "%Y-%m-%d") if start else (datetime.today() - timedelta(days=2000))
-    for i in range(500):
-        o = round(base + _r.uniform(-0.5, 0.5), 2)
-        c = round(o + _r.uniform(-0.8, 0.8), 2)
-        h = round(max(o, c) + _r.uniform(0, 0.4), 2)
-        l = round(min(o, c) - _r.uniform(0, 0.4), 2)
-        base = c
-        d = (sd + timedelta(days=i)).strftime("%Y-%m-%d")
-        klines.append({"date": d, "open": o, "close": c, "high": h, "low": l, "volume": _r.randint(500, 5000) * 10000})
-    return klines[-kline_count:]
+    return None
 
 
 def get_quotes(symbols):
