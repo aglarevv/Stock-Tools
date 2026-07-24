@@ -75,6 +75,6 @@ const bridge = {
   async searchStock(keyword) { return callBridge({ action: "search", keyword }, 15000); },
   async getIndustries(topN) { return callBridge({ action: "industries", topN }, 20000); },
   async searchSectors(keyword) { return callBridge({ action: "searchSectors", keyword }, 15000); },
-  async getRandomKline(count = 500) { return callBridge({ action: "randomKline", count }, 30000); },
+  async getRandomKline(count = 500) { return callBridge({ action: "randomKline", count }, 60000); },
 };
 module.exports = bridge;
